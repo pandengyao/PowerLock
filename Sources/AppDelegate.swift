@@ -171,6 +171,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         menu.addItem(.separator())
 
+        let update = NSMenuItem(title: "检查更新…", action: #selector(checkForUpdates), keyEquivalent: "")
+        update.target = self
+        menu.addItem(update)
+
         let about = NSMenuItem(title: "关于 PowerLock…", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         menu.addItem(about)
@@ -249,6 +253,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func openLockSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.Lock-Screen-Settings.extension") else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    @objc private func checkForUpdates() {
+        UpdateChecker.check { info in
+            guard let info else {
+                showAlert("检查更新失败", "无法获取最新版本，请稍后再试。", style: .warning)
+                return
+            }
+            if info.version.compare(AppInfo.version, options: .numeric) == .orderedDescending {
+                let alert = NSAlert()
+                alert.messageText = "发现新版本 \(info.version)"
+                alert.informativeText = "当前版本 \(AppInfo.version)。"
+                alert.addButton(withTitle: "打开发布页")
+                alert.addButton(withTitle: "稍后")
+                activateApp()
+                if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: info.url) {
+                    NSWorkspace.shared.open(url)
+                }
+            } else {
+                showAlert("已是最新版本", "当前版本 \(AppInfo.version)。", style: .informational)
+            }
+        }
     }
 
     @objc private func showAbout() {

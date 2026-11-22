@@ -25,7 +25,7 @@ launchd 配置：`/Library/LaunchDaemons/com.powerlock.helper.plist`（root:whee
 
 ## 不做什么
 
-- 不联网、不上传数据
+- 除手动「检查更新」请求 GitHub Releases API 外，不联网、不上传数据
 - 不读取用户文件内容
 - 不监听端口
 - 不执行配置中的任何字符串（只读取布尔值）

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.1 — 2026-11-22
+
+- 新增菜单「检查更新…」：手动请求 GitHub Releases API，显示是否有新版本并打开发布页
+- CI GitHub Actions 升级到 Node 24 版本（checkout@v5、upload-artifact@v5）
+- 更新隐私说明：仅手动检查更新时访问 GitHub，不做后台轮询
+
 ## 1.0.0 — 2026-11-22
 
 首个公开版本。
