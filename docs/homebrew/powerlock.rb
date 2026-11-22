@@ -1,12 +1,11 @@
 # Homebrew Cask 模板
-# 发布后把 sha256 换成 GitHub Release 中 dmg 的实际值，
-# 放进自己的 homebrew tap（例如 homebrew-tap/Casks/powerlock.rb）。
+# 已发布到 pandengyao/homebrew-tap。
 #
 # 注意：助手是系统级 launchd 服务，建议先让用户在 App 菜单里
 # 执行「卸载后台助手…」再删除 App，避免残留。
 cask "powerlock" do
   version "1.0.0"
-  sha256 "REPLACE_WITH_SHA256_OF_DMG"
+  sha256 "91c0e2cf08c981ebbd6c8a879ccadf61296631f5ddd5264104d050ddaa5d7169"
 
   url "https://github.com/pandengyao/PowerLock/releases/download/v#{version}/PowerLock-#{version}.dmg"
   name "PowerLock"
