@@ -29,6 +29,8 @@ PowerLock 是一个 macOS 菜单栏小工具，适合把笔记本当台式机用
    - 再打开一次 PowerLock
 4. 首次启动会显示引导窗口，点「安装后台助手并启用」，输入一次管理员密码
 
+<p align="center"><img src="docs/images/onboarding.png" width="360" alt="PowerLock 首次启动"></p>
+
 ### 方式二：Homebrew
 
 ```bash
