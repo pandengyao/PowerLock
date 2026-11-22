@@ -7,6 +7,9 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
 
 jobs:
   release:
@@ -17,6 +20,17 @@ jobs:
       - name: Make scripts executable
         run: chmod +x scripts/*.sh Tests/*.sh Resources/Helper/*.sh
 
+      - name: Check tag matches Info.plist
+        run: |
+          plist_version=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Resources/Info.plist)
+          if [[ "$plist_version" != "${GITHUB_REF_NAME#v}" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match Info.plist version $plist_version" >&2
+            exit 1
+          fi
+
+      - name: Helper state machine tests
+        run: ./Tests/helper-test.sh
+
       - name: Package universal build
         run: |
           VERSION="${GITHUB_REF_NAME#v}" UNIVERSAL=1 ./scripts/package.sh
@@ -25,6 +39,13 @@ jobs:
         run: |
           lipo -info build/PowerLock.app/Contents/MacOS/PowerLock
           cat build/dist/SHA256SUMS.txt
+
+      - name: Attest build provenance
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            build/dist/*.zip
+            build/dist/*.dmg
 
       - name: Create release
         uses: softprops/action-gh-release@v2

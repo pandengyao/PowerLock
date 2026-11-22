@@ -13,7 +13,7 @@
 ```bash
 ./scripts/build.sh             # 构建 build/PowerLock.app
 ./scripts/check.sh             # 脚本语法 + plist + 构建 + CLI
-./Tests/helper-test.sh         # 助手状态机测试（mock pmset）
+./Tests/helper-test.sh         # 助手状态机测试（mock pmset / ioreg）
 UNIVERSAL=1 ./scripts/build.sh # universal
 ```
 
@@ -22,6 +22,8 @@ UNIVERSAL=1 ./scripts/build.sh # universal
 - Swift 5 语法（`-swift-version 5`），最低部署目标 macOS 13
 - UI 文本使用中文；新增文案尽量简短、面向普通用户
 - 助手脚本使用 zsh，`set -u`，只执行固定命令，不拼接用户输入
+- 改了助手逻辑要把 `HELPER_VERSION` 加 1，并在 `Tests/helper-test.sh` 加用例
+- 不要在用户没开启时修改系统设置；恢复设置时只恢复 PowerLock 自己改过的
 - 不引入第三方运行时依赖；构建只依赖系统工具
 - 不添加网络请求、分析或遥测
 
@@ -34,7 +36,7 @@ UNIVERSAL=1 ./scripts/build.sh # universal
 
 ## 发布
 
-维护者打 tag（`v1.0.0`）后，GitHub Actions 会构建 universal 包并创建 Release。Homebrew Cask 模板在 `docs/homebrew/powerlock.rb`，发布后更新 URL/SHA256 并提交到 tap。
+见 [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md)。版本号以 `Resources/Info.plist` 为准，tag 必须与之一致。
 
 ## 安全问题
 

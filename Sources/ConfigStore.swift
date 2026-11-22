@@ -4,6 +4,8 @@ struct PowerLockConfig: Equatable {
     var enabled: Bool = false
     var noLock: Bool = true
     var lidAwake: Bool = true
+    /// App 是否在运行。屏幕保护由 App 管理，App 退出后助手也恢复显示器休眠，两者保持一致。
+    var appRunning: Bool = true
 }
 
 /// 用户配置：~/Library/Application Support/PowerLock/config.plist
@@ -24,7 +26,8 @@ final class ConfigStore {
         let dictionary: [String: Any] = [
             "enabled": config.enabled,
             "noLock": config.noLock,
-            "lidAwake": config.lidAwake
+            "lidAwake": config.lidAwake,
+            "appRunning": config.appRunning
         ]
         do {
             try FileManager.default.createDirectory(
@@ -56,6 +59,7 @@ final class ConfigStore {
         if let value = dictionary["enabled"] as? Bool { config.enabled = value }
         if let value = dictionary["noLock"] as? Bool { config.noLock = value }
         if let value = dictionary["lidAwake"] as? Bool { config.lidAwake = value }
+        if let value = dictionary["appRunning"] as? Bool { config.appRunning = value }
         return config
     }
 }
