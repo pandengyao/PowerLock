@@ -32,10 +32,11 @@ PowerLock 是一个 macOS 菜单栏小工具，适合把笔记本当台式机用
 ### 方式二：Homebrew
 
 ```bash
+brew trust pandengyao/tap   # 新版 Homebrew 需要先信任第三方 tap
 brew install --cask pandengyao/tap/powerlock
 ```
 
-（需要先安装 Homebrew；也可以直接下载 dmg。）
+（需要先安装 Homebrew；旧版 Homebrew 可能没有 `brew trust`，可直接安装。也可以直接下载 dmg。）
 
 ### 方式三：源码构建
 
