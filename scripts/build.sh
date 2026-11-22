@@ -5,8 +5,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-VERSION="${VERSION:-1.0.0}"
-BUILD="${BUILD:-1}"
+# 版本号默认取 Resources/Info.plist，保证本地构建和 Release 一致。
+VERSION="${VERSION:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Resources/Info.plist)}"
+BUILD="${BUILD:-$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' Resources/Info.plist)}"
 APP="build/PowerLock.app"
 
 rm -rf "$APP"

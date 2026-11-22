@@ -18,6 +18,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         _ = Legacy.migrateIfNeeded(into: store)
         Legacy.cleanup()
+        if FileManager.default.fileExists(atPath: AppInfo.configPath) {
+            store.update { $0.appRunning = true }
+        }
 
         power.start()
         power.onChange { [weak self] in
@@ -43,12 +46,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if !helper.isInstalled {
             showOnboarding()
+        } else if helper.needsUpdate {
+            DispatchQueue.main.async { [weak self] in
+                self?.promptHelperUpdate()
+            }
         }
     }
 
+    /// 「插电不锁屏」需要 App 在运行：退出时恢复屏幕保护，并通知助手恢复显示器休眠，
+    /// 避免卸载或退出后留下「永不启动」。合盖运行由后台助手负责，不受 App 退出影响。
     func applicationWillTerminate(_ notification: Notification) {
-        if !store.config.enabled {
-            ScreenSaver.restore()
+        ScreenSaver.restore()
+        if FileManager.default.fileExists(atPath: AppInfo.configPath) {
+            store.update { $0.appRunning = false }
         }
     }
 
@@ -60,6 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var statusText: String {
         if !helper.isInstalled { return "后台助手未安装" }
+        if helper.needsUpdate { return "后台助手需要更新" }
         if !store.config.enabled { return "已关闭" }
         return power.isOnAC ? "已开启（插电不锁屏）" : "已开启（电池中，已暂停）"
     }
@@ -76,6 +87,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let symbol: String
         if !helper.isInstalled {
             symbol = "lock.slash"
+        } else if helper.needsUpdate {
+            symbol = "lock.trianglebadge.exclamationmark"
         } else if !store.config.enabled {
             symbol = "lock.fill"
         } else {
@@ -131,6 +144,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addInfo(menu, "合盖后保持运行：\(lidText())")
 
         menu.addItem(.separator())
+
+        if installed && helper.needsUpdate {
+            let update = NSMenuItem(title: "更新后台助手…", action: #selector(updateHelper), keyEquivalent: "")
+            update.target = self
+            menu.addItem(update)
+        }
 
         if installed {
             let noLock = NSMenuItem(
@@ -238,6 +257,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             showAlert("已启用", "后台助手已安装，PowerLock 开始工作。", style: .informational)
         } else if !result.cancelled {
             showAlert("安装失败", result.message)
+        }
+    }
+
+    /// 升级 App 后，已安装的助手可能还是旧逻辑；提示用户输入一次管理员密码更新。
+    private func promptHelperUpdate() {
+        let alert = NSAlert()
+        alert.messageText = "需要更新后台助手"
+        alert.informativeText = "PowerLock 已升级，后台助手也有更新（修复合盖时拔电不睡眠等问题）。更新需要输入一次管理员密码。"
+        alert.addButton(withTitle: "现在更新")
+        alert.addButton(withTitle: "稍后")
+        activateApp()
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        updateHelper()
+    }
+
+    @objc private func updateHelper() {
+        let result = helper.install(bundlePath: Bundle.main.bundlePath)
+        refresh()
+        if result.ok {
+            showAlert("已更新", "后台助手已更新到最新版本。", style: .informational)
+        } else if !result.cancelled {
+            showAlert("更新失败", result.message)
         }
     }
 

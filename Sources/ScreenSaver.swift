@@ -2,9 +2,18 @@ import Foundation
 
 /// 通过 com.apple.screensaver 的 idleTime 控制「启动屏幕保护程序」。
 /// 只在我们实际改动过时才记录标记，避免覆盖用户自己设置的「永不」。
+/// 标记文件内容：改动前的秒数；原来没有这个键（系统默认）时写 `default`；
+/// 1.0.x 留下的是空文件。
 enum ScreenSaver {
     private static let domain = "com.apple.screensaver" as CFString
     private static var markerPath: String { AppInfo.supportDir + "/screensaver-managed" }
+    private static let systemDefaultMarker = "default"
+
+    private enum Original {
+        case seconds(Int)
+        case systemDefault
+        case unknown
+    }
 
     static func idleTime() -> Int? {
         guard let value = CFPreferencesCopyValue(
@@ -18,31 +27,31 @@ enum ScreenSaver {
         return (value as? NSNumber)?.intValue
     }
 
-    static func lastDelayTime() -> Int {
-        if let value = CFPreferencesCopyValue(
-            "lastDelayTime" as CFString,
-            domain,
-            kCFPreferencesCurrentUser,
-            kCFPreferencesCurrentHost
-        ) as? NSNumber, value.intValue > 0 {
-            return value.intValue
-        }
-        return 1200
-    }
-
     static func disableAutoLock() {
-        guard let current = idleTime(), current != 0 else { return }
-        createMarkerIfNeeded()
+        let current = idleTime()
+        // 用户自己设成「永不」时不接管，也不留标记。
+        if current == 0 { return }
+        createMarkerIfNeeded(original: current)
         set(0)
-        AppLog.info("screen saver idleTime \(current) -> 0")
+        AppLog.info("screen saver idleTime \(current.map(String.init) ?? "default") -> 0")
     }
 
     static func restore() {
         guard FileManager.default.fileExists(atPath: markerPath) else { return }
-        let restore = lastDelayTime()
+        // 如果用户在接管期间自己改过，就不再覆盖。
         if idleTime() == 0 {
-            set(restore)
-            AppLog.info("screen saver idleTime restored to \(restore)")
+            var restoreTo: Int?
+            switch savedOriginal() {
+            case .seconds(let value):
+                restoreTo = value
+            case .systemDefault:
+                restoreTo = nil
+            case .unknown:
+                // 1.0.x 没记原值；系统把选「永不」之前的时间存在 lastDelayTime。
+                restoreTo = lastDelayTime()
+            }
+            set(restoreTo)
+            AppLog.info("screen saver idleTime restored to \(restoreTo.map(String.init) ?? "system default")")
         }
         try? FileManager.default.removeItem(atPath: markerPath)
     }
@@ -55,26 +64,51 @@ enum ScreenSaver {
     /// 这样拔电后仍能恢复用户原来的屏幕保护时间。
     static func adoptCurrentZero() {
         guard idleTime() == 0 else { return }
-        createMarkerIfNeeded()
+        createMarkerIfNeeded(original: lastDelayTime() ?? 1200)
     }
 
-    private static func set(_ value: Int) {
+    private static func savedOriginal() -> Original {
+        guard let data = FileManager.default.contents(atPath: markerPath),
+              let text = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return .unknown
+        }
+        if text == systemDefaultMarker { return .systemDefault }
+        if let value = Int(text), value > 0 { return .seconds(value) }
+        return .unknown
+    }
+
+    /// 没有记录时返回 nil，恢复时删除 idleTime，回到系统默认。
+    private static func lastDelayTime() -> Int? {
+        guard let value = CFPreferencesCopyValue(
+            "lastDelayTime" as CFString,
+            domain,
+            kCFPreferencesCurrentUser,
+            kCFPreferencesCurrentHost
+        ) as? NSNumber, value.intValue > 0 else {
+            return nil
+        }
+        return value.intValue
+    }
+
+    private static func set(_ value: Int?) {
         CFPreferencesSetValue(
             "idleTime" as CFString,
-            NSNumber(value: value),
+            value.map { NSNumber(value: $0) },
             domain,
             kCFPreferencesCurrentUser,
             kCFPreferencesCurrentHost
         )
-        CFPreferencesAppSynchronize(domain)
+        CFPreferencesSynchronize(domain, kCFPreferencesCurrentUser, kCFPreferencesCurrentHost)
     }
 
-    private static func createMarkerIfNeeded() {
+    private static func createMarkerIfNeeded(original: Int?) {
         guard !FileManager.default.fileExists(atPath: markerPath) else { return }
         try? FileManager.default.createDirectory(
             atPath: AppInfo.supportDir,
             withIntermediateDirectories: true
         )
-        FileManager.default.createFile(atPath: markerPath, contents: Data())
+        let content = original.map { String($0) } ?? systemDefaultMarker
+        FileManager.default.createFile(atPath: markerPath, contents: Data(content.utf8))
     }
 }
