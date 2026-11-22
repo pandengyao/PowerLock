@@ -56,6 +56,8 @@ open build/PowerLock.app
 
 启动后菜单栏会出现一个锁形图标：
 
+<p align="center"><img src="docs/images/menu.png" width="320" alt="PowerLock 菜单"></p>
+
 - **开锁图标**：已开启且正在插电工作
 - **上锁图标**：已关闭
 - **带斜杠的锁**：后台助手未安装
