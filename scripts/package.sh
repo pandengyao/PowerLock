@@ -15,7 +15,7 @@ rm -f "$DIST/PowerLock-$VERSION.zip" "$DIST/PowerLock-$VERSION.dmg" "$DIST/SHA25
 
 ditto -c -k --keepParent build/PowerLock.app "$DIST/PowerLock-$VERSION.zip"
 hdiutil create -volname "PowerLock $VERSION" -srcfolder build/PowerLock.app -ov -format UDZO "$DIST/PowerLock-$VERSION.dmg" >/dev/null
-shasum -a 256 "$DIST"/*.zip "$DIST"/*.dmg > "$DIST/SHA256SUMS.txt"
+( cd "$DIST" && shasum -a 256 ./*.zip ./*.dmg > SHA256SUMS.txt )
 
 echo "Packaged:"
 ls -lh "$DIST"
