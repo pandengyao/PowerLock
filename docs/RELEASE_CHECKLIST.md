@@ -9,7 +9,8 @@
 - [ ] `Resources/Info.plist` 的 `CFBundleShortVersionString` 和 `CFBundleVersion` 已更新（构建脚本和 Release 工作流都以它为准，tag 必须与之一致）
 - [ ] 助手逻辑有变化时，`Resources/Helper/powerlock-helper.sh` 里的 `HELPER_VERSION` 加 1
 - [ ] `CHANGELOG.md` 写好，把"未发布"改成日期
-- [ ] README 截图/GIF 是否需要更新
+- [ ] README 截图/GIF 是否需要更新。界面截图用 `build/PowerLock.app/Contents/MacOS/PowerLock --render-previews build/previews` 离屏生成（中英文 × 浅色/深色）
+- [ ] 系统语言分别设为中文和英文，各打开一次菜单和引导窗口
 
 ## 2. 构建与产物
 
@@ -36,9 +37,9 @@ cat build/dist/SHA256SUMS.txt
 - [ ] 开盖拔电：5 秒内 `pmset -g | grep SleepDisabled` 为 0
 - [ ] **合盖拔电**：合盖插电运行 1 分钟后拔电，10 秒内 Mac 睡眠（`pmset -g log | grep -i "Entering Sleep"`）
 - [ ] 合盖 + 外接显示器拔电：不睡眠（系统本身就不会因合盖睡眠）
-- [ ] 从上一版本升级：菜单栏出现带感叹号的锁，弹窗更新助手后恢复正常
+- [ ] 从上一版本升级：如果助手有更新，菜单栏图标右上角出现圆点，弹窗更新助手后恢复正常
 - [ ] 菜单开关、登录项、诊断都正常
-- [ ] 菜单「卸载后台助手…」后无残留：
+- [ ] 菜单「更多 → 卸载 PowerLock…」后无残留：
 
 ```bash
 sudo launchctl print system/com.powerlock.helper              # 应不存在

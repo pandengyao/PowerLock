@@ -24,8 +24,6 @@ What it does:
 - **Restores normal behavior on battery**: system sleep settings come back. If the lid is already closed when you unplug, the Mac goes to sleep right away instead of staying awake in your bag
 - **No switch to remember**: it follows the power source automatically. You can turn it off or uninstall it from the menu bar at any time
 
-> The UI is in Chinese for now. English UI is planned, see the [roadmap](docs/ROADMAP.md).
-
 <p align="center"><img src="docs/images/demo.gif" width="640" alt="PowerLock demo: switching between AC and battery"></p>
 
 ## How it compares
@@ -69,7 +67,26 @@ cd PowerLock
 open build/PowerLock.app
 ```
 
-On first launch, click the button in the welcome window to install the helper and enter your admin password once.
+On first launch, click **Install and Turn On** in the welcome window and enter your admin password once.
+
+<p align="center"><img src="docs/images/onboarding-en.png" width="420" alt="PowerLock welcome window"></p>
+
+## Using it
+
+PowerLock lives in the menu bar. Click the lock to see what it's doing:
+
+<p align="center"><img src="docs/images/menu-en.png" width="340" alt="PowerLock menu"></p>
+
+The menu bar icon:
+
+- **Open lock with a bolt**: working (plugged in)
+- **Open lock, hollow**: on, but paused because you're on battery
+- **Closed lock**: off
+- **Dot in the corner**: setup isn't finished, or the helper needs an update
+
+In the menu, **PowerLock Enabled** is the main switch, and the two options under **While plugged in** can be turned on and off separately. **More** has Lock Screen settings, updates, diagnostics, issue reporting and uninstall.
+
+The UI follows your system language: Simplified Chinese if that comes first in your preferred languages, English otherwise.
 
 ## How it works
 
@@ -90,7 +107,7 @@ See [SECURITY.md](SECURITY.md) for the full permission model.
 
 ## Uninstall
 
-1. Menu bar → PowerLock → **卸载后台助手…** (Uninstall helper). The app removes the helper, restores sleep settings and quits
+1. Menu bar → PowerLock → More → **Uninstall PowerLock…**. The app removes the helper, restores sleep settings and quits
 2. Move `PowerLock.app` to the Trash
 
 If you installed with Homebrew, either remove the helper from the menu first and then run `brew uninstall --cask powerlock`, or run `brew uninstall --zap --cask powerlock`, which also stops and removes the helper.

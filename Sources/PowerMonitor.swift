@@ -48,7 +48,4 @@ final class PowerMonitor {
         return type == "AC Power"
     }
 
-    static func label() -> String {
-        currentIsAC() ? "电源适配器" : "电池"
-    }
 }

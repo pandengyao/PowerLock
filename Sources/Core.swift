@@ -25,6 +25,16 @@ enum AppInfo {
     static var configPath: String { supportDir + "/config.plist" }
     static var loginAgentPath: String { NSHomeDirectory() + "/Library/LaunchAgents/\(loginLabel).plist" }
 
+    static let repoURL = URL(string: "https://github.com/pandengyao/PowerLock")!
+    static let newIssueURL = URL(string: "https://github.com/pandengyao/PowerLock/issues/new/choose")!
+
+    /// App 是否装在 Homebrew 的 Caskroom 里（Homebrew 会把 .app 放到 /Applications，
+    /// 同时在 Caskroom 留一份记录），用于检查更新时提示 brew upgrade。
+    static var installedWithHomebrew: Bool {
+        ["/opt/homebrew/Caskroom/powerlock", "/usr/local/Caskroom/powerlock"]
+            .contains { FileManager.default.fileExists(atPath: $0) }
+    }
+
     /// 旧版原型（local.powerlock LaunchAgent）的路径，用于一次性迁移/清理。
     static var legacyAgentPath: String { NSHomeDirectory() + "/Library/LaunchAgents/local.powerlock.plist" }
     static var legacyScriptPath: String { supportDir + "/powerlock.sh" }
@@ -80,16 +90,22 @@ private func appleScriptEscape(_ value: String) -> String {
 func runAsAdministrator(_ command: String) -> (ok: Bool, cancelled: Bool, message: String) {
     let source = "do shell script \"\(appleScriptEscape(command))\" with administrator privileges"
     guard let script = NSAppleScript(source: source) else {
-        return (false, false, "无法创建授权脚本")
+        return (false, false, L.authScriptFailed)
     }
     var errorInfo: NSDictionary?
     _ = script.executeAndReturnError(&errorInfo)
     if let errorInfo {
         let number = (errorInfo["NSAppleScriptErrorNumber"] as? Int) ?? 0
-        let message = (errorInfo["NSAppleScriptErrorMessage"] as? String) ?? "未知错误"
+        let message = (errorInfo["NSAppleScriptErrorMessage"] as? String) ?? L.unknownError
         return (false, number == -128, message)
     }
     return (true, false, "")
+}
+
+/// SF Symbol。名字在当前系统上不存在时返回空图，不崩溃。
+/// 注意有些名字是新系统才有的（例如 battery.75percent 要 macOS 14），最低支持 13，用之前查一下。
+func symbol(_ name: String) -> NSImage {
+    NSImage(systemSymbolName: name, accessibilityDescription: nil) ?? NSImage(size: NSSize(width: 16, height: 16))
 }
 
 func activateApp() {
@@ -105,7 +121,7 @@ func showAlert(_ title: String, _ message: String, style: NSAlert.Style = .warni
     alert.messageText = title
     alert.informativeText = message
     alert.alertStyle = style
-    alert.addButton(withTitle: "好")
+    alert.addButton(withTitle: L.ok)
     activateApp()
     alert.runModal()
 }

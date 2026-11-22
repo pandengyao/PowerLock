@@ -29,16 +29,9 @@ final class LoginItemManager {
             try data.write(to: URL(fileURLWithPath: AppInfo.loginAgentPath), options: .atomic)
         } catch {
             AppLog.error("写入登录项失败: \(error.localizedDescription)")
-            return
         }
-        _ = runProcess("/bin/launchctl", ["bootout", "gui/\(getuid())/\(AppInfo.loginLabel)"])
-        let result = runProcess(
-            "/bin/launchctl",
-            ["bootstrap", "gui/\(getuid())", AppInfo.loginAgentPath]
-        )
-        if result.status != 0 {
-            AppLog.error("加载登录项失败: \(result.output)")
-        }
+        // 只写 plist，不立即 bootstrap：launchd 下次登录时会自动加载 ~/Library/LaunchAgents。
+        // 立即加载会因为 RunAtLoad 马上执行 open -a，正在运行的 App 收到 reopen 事件，菜单会自己弹出来。
     }
 
     func disable() {

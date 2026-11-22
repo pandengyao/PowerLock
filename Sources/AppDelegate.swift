@@ -8,11 +8,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let power = PowerMonitor()
     private var refreshTimer: Timer?
     private var onboarding: OnboardingWindow?
+    private let header = MenuHeaderView()
+    private lazy var headerItem: NSMenuItem = {
+        let item = NSMenuItem()
+        item.view = header
+        return item
+    }()
+
+    /// 助手状态要读文件：启动、菜单打开、电源变化、唤醒、安装/更新后，以及 30 秒定时器里重新读。
+    private var helperInstalled = false
+    private var helperOutdated = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         let menu = NSMenu()
         menu.delegate = self
+        menu.autoenablesItems = false
         item.menu = menu
         statusItem = item
 
@@ -24,8 +35,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         power.start()
         power.onChange { [weak self] in
-            self?.applyScreenSaver()
-            self?.refresh()
+            self?.reloadHelperState()
+            self?.apply()
         }
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
@@ -34,26 +45,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             object: nil
         )
 
-        applyScreenSaver()
-        refresh()
+        reloadHelperState()
+        apply()
 
-        let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
-            self?.applyScreenSaver()
-            self?.refresh()
+        // 兜底：助手可能在外部被删掉，屏幕保护设置也可能被系统设置改回去，定时检查一次。
+        let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
+            self?.reloadHelperState()
+            self?.apply()
         }
         RunLoop.main.add(timer, forMode: .common)
         refreshTimer = timer
 
-        if !helper.isInstalled {
+        if !helperInstalled {
             showOnboarding()
-        } else if helper.needsUpdate {
+        } else if helperOutdated {
             DispatchQueue.main.async { [weak self] in
                 self?.promptHelperUpdate()
             }
         }
     }
 
-    /// 「插电不锁屏」需要 App 在运行：退出时恢复屏幕保护，并通知助手恢复显示器休眠，
+    /// 「不自动锁屏」需要 App 在运行：退出时恢复屏幕保护，并通知助手恢复显示器休眠，
     /// 避免卸载或退出后留下「永不启动」。合盖运行由后台助手负责，不受 App 退出影响。
     func applicationWillTerminate(_ notification: Notification) {
         ScreenSaver.restore()
@@ -66,176 +78,214 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         false
     }
 
-    // MARK: - 状态与图标
-
-    private var statusText: String {
-        if !helper.isInstalled { return "后台助手未安装" }
-        if helper.needsUpdate { return "后台助手需要更新" }
-        if !store.config.enabled { return "已关闭" }
-        return power.isOnAC ? "已开启（插电不锁屏）" : "已开启（电池中，已暂停）"
+    /// 从 Finder 或 Launchpad 再次打开 App 时：没设置好就显示引导，否则弹出菜单。
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        reloadHelperState()
+        if !helperInstalled {
+            showOnboarding()
+        } else {
+            statusItem.button?.performClick(nil)
+        }
+        return false
     }
 
-    private func applyScreenSaver() {
-        if store.config.enabled && store.config.noLock && power.isOnAC {
+    // MARK: - 状态
+
+    private enum Mode {
+        case noHelper, helperOutdated, off, paused, active
+    }
+
+    /// 两个选项都关着时，总开关开着也什么都不做，按「已关闭」显示。
+    private var mode: Mode {
+        let config = store.config
+        if !helperInstalled { return .noHelper }
+        if helperOutdated { return .helperOutdated }
+        if !config.enabled || (!config.noLock && !config.lidAwake) { return .off }
+        return power.isOnAC ? .active : .paused
+    }
+
+    private func reloadHelperState() {
+        helperInstalled = helper.isInstalled
+        helperOutdated = helperInstalled && helper.needsUpdate
+    }
+
+    /// 按当前配置和电源状态设置屏幕保护，并刷新菜单栏图标。
+    private func apply() {
+        let config = store.config
+        if helperInstalled && config.enabled && config.noLock && power.isOnAC {
             ScreenSaver.disableAutoLock()
         } else {
             ScreenSaver.restore()
         }
+        refreshIcon()
     }
 
-    private func refresh() {
-        let symbol: String
-        if !helper.isInstalled {
-            symbol = "lock.slash"
-        } else if helper.needsUpdate {
-            symbol = "lock.trianglebadge.exclamationmark"
-        } else if !store.config.enabled {
-            symbol = "lock.fill"
-        } else {
-            symbol = power.isOnAC ? "lock.open.fill" : "lock.open"
+    private func refreshIcon() {
+        let state: StatusIcon.State
+        let tooltip: String
+        switch mode {
+        case .noHelper:
+            state = .attention
+            tooltip = L.tooltipAttention
+        case .helperOutdated:
+            state = .attention
+            tooltip = L.tooltipHelperOutdated
+        case .off:
+            state = .off
+            tooltip = L.tooltipOff
+        case .paused:
+            state = .paused
+            tooltip = L.tooltipPaused
+        case .active:
+            state = .active
+            tooltip = L.tooltipActive
         }
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: "PowerLock")
-        image?.isTemplate = true
-        statusItem.button?.image = image
-        statusItem.button?.toolTip = "PowerLock：\(statusText)"
-    }
-
-    // MARK: - 首次引导
-
-    private func showOnboarding() {
-        if let onboarding {
-            onboarding.show()
-            return
-        }
-        let window = OnboardingWindow(
-            onEnable: { [weak self] wantsLogin in
-                guard let self else { return (false, "内部错误") }
-                let result = self.helper.install(bundlePath: Bundle.main.bundlePath)
-                guard result.ok else {
-                    return (false, result.cancelled ? "已取消管理员授权" : result.message)
-                }
-                self.store.update { $0.enabled = true }
-                if wantsLogin { self.login.enable() }
-                self.applyScreenSaver()
-                self.refresh()
-                return (true, "")
-            },
-            onFinish: { [weak self] _ in
-                self?.onboarding = nil
-            }
-        )
-        onboarding = window
-        window.show()
+        statusItem.button?.image = StatusIcon.image(state)
+        statusItem.button?.toolTip = tooltip
+        statusItem.button?.setAccessibilityLabel(tooltip)
     }
 
     // MARK: - 菜单
 
     func menuWillOpen(_ menu: NSMenu) {
+        reloadHelperState()
+        apply()
         rebuild(menu)
     }
 
     private func rebuild(_ menu: NSMenu) {
         menu.removeAllItems()
-        let installed = helper.isInstalled
+        let config = store.config
+        let mode = self.mode
 
-        addInfo(menu, "状态：\(statusText)")
-        addInfo(menu, "当前电源：\(PowerMonitor.label())")
-        addInfo(menu, "屏幕保护程序：\(idleText())")
-        addInfo(menu, "合盖后保持运行：\(lidText())")
+        // 状态区：一直复用同一个菜单项和 view
+        header.update(tone: headerTone(mode), title: headerTitle(mode), detail: headerDetail(mode), onAC: power.isOnAC)
+        menu.addItem(headerItem)
+        menu.addItem(.separator())
+
+        if mode == .noHelper {
+            menu.addItem(item(L.installHelper, #selector(runSetup)))
+        } else {
+            // 助手需要更新时也保留开关：用户点了「稍后」，仍然可以关掉功能
+            if mode == .helperOutdated {
+                menu.addItem(item(L.updateHelper, #selector(updateHelper)))
+                menu.addItem(.separator())
+            }
+            // 总开关
+            let master = item(L.turnOn, #selector(toggleEnabled))
+            master.state = config.enabled ? .on : .off
+            menu.addItem(master)
+
+            // 两个选项：总开关关着时置灰，但仍显示当前选择
+            menu.addItem(sectionHeader(L.optionsSection))
+            let noLock = item(L.optionNoLock, #selector(toggleNoLock))
+            noLock.state = config.noLock ? .on : .off
+            noLock.isEnabled = config.enabled
+            noLock.toolTip = L.optionNoLockHint
+            noLock.indentationLevel = 1
+            menu.addItem(noLock)
+
+            let lid = item(L.optionLid, #selector(toggleLidAwake))
+            lid.state = config.lidAwake ? .on : .off
+            lid.isEnabled = config.enabled
+            lid.toolTip = L.optionLidHint
+            lid.indentationLevel = 1
+            menu.addItem(lid)
+        }
 
         menu.addItem(.separator())
 
-        if installed && helper.needsUpdate {
-            let update = NSMenuItem(title: "更新后台助手…", action: #selector(updateHelper), keyEquivalent: "")
-            update.target = self
-            menu.addItem(update)
-        }
-
-        if installed {
-            let noLock = NSMenuItem(
-                title: store.config.noLock ? "关闭「插电不锁屏」" : "开启「插电不锁屏」",
-                action: #selector(toggleNoLock),
-                keyEquivalent: ""
-            )
-            noLock.target = self
-            menu.addItem(noLock)
-
-            let lid = NSMenuItem(
-                title: store.config.lidAwake ? "关闭「合盖后保持运行」" : "开启「合盖后保持运行」",
-                action: #selector(toggleLidAwake),
-                keyEquivalent: ""
-            )
-            lid.target = self
-            menu.addItem(lid)
-        } else {
-            let install = NSMenuItem(title: "安装后台助手…", action: #selector(installHelper), keyEquivalent: "")
-            install.target = self
-            menu.addItem(install)
-        }
-
-        let loginItem = NSMenuItem(title: "登录时自动启动", action: #selector(toggleLogin), keyEquivalent: "")
-        loginItem.target = self
+        let loginItem = item(L.launchAtLogin, #selector(toggleLogin))
         loginItem.state = login.isEnabled ? .on : .off
         menu.addItem(loginItem)
 
+        // 不常用的放进子菜单
+        let moreMenu = NSMenu()
+        moreMenu.autoenablesItems = false
+        moreMenu.addItem(item(L.lockScreenSettings, #selector(openLockSettings)))
+        moreMenu.addItem(.separator())
+        moreMenu.addItem(item(L.checkForUpdates, #selector(checkForUpdates)))
+        moreMenu.addItem(item(L.diagnostics, #selector(showDiagnostics)))
+        moreMenu.addItem(item(L.reportIssue, #selector(reportIssue)))
+        moreMenu.addItem(.separator())
+        let uninstall = item(L.uninstall, #selector(uninstallAndQuit))
+        moreMenu.addItem(uninstall)
+        let more = NSMenuItem(title: L.more, action: nil, keyEquivalent: "")
+        more.submenu = moreMenu
+        menu.addItem(more)
+
+        menu.addItem(item(L.aboutItem, #selector(showAbout)))
         menu.addItem(.separator())
-
-        let diagnostics = NSMenuItem(title: "诊断…", action: #selector(showDiagnostics), keyEquivalent: "")
-        diagnostics.target = self
-        menu.addItem(diagnostics)
-
-        let lockSettings = NSMenuItem(title: "打开「锁定屏幕」设置…", action: #selector(openLockSettings), keyEquivalent: "")
-        lockSettings.target = self
-        menu.addItem(lockSettings)
-
-        menu.addItem(.separator())
-
-        let update = NSMenuItem(title: "检查更新…", action: #selector(checkForUpdates), keyEquivalent: "")
-        update.target = self
-        menu.addItem(update)
-
-        let about = NSMenuItem(title: "关于 PowerLock…", action: #selector(showAbout), keyEquivalent: "")
-        about.target = self
-        menu.addItem(about)
-
-        let uninstall = NSMenuItem(title: "卸载后台助手…", action: #selector(uninstallAndQuit), keyEquivalent: "")
-        uninstall.target = self
-        uninstall.isEnabled = installed
-        menu.addItem(uninstall)
-
-        let quit = NSMenuItem(title: "退出 PowerLock", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: L.quit, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
     }
 
-    private func addInfo(_ menu: NSMenu, _ title: String) {
+    private func item(_ title: String, _ action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
+    private func sectionHeader(_ title: String) -> NSMenuItem {
+        if #available(macOS 14.0, *) {
+            return NSMenuItem.sectionHeader(title: title)
+        }
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = false
-        menu.addItem(item)
+        return item
     }
 
-    private func idleText() -> String {
-        guard let idle = ScreenSaver.idleTime() else { return "未知" }
-        if idle == 0 { return "不自动启动" }
-        if idle % 60 == 0 { return "\(idle / 60) 分钟后启动" }
-        return "\(idle) 秒后启动"
+    private func headerTone(_ mode: Mode) -> MenuHeaderView.Tone {
+        switch mode {
+        case .noHelper, .helperOutdated: return .attention
+        case .off: return .off
+        case .paused: return .paused
+        case .active: return .active
+        }
     }
 
-    private func lidText() -> String {
-        guard helper.isInstalled else { return "需要安装后台助手" }
-        return store.config.lidAwake ? "已开启（仅插电）" : "已关闭"
+    private func headerTitle(_ mode: Mode) -> String {
+        switch mode {
+        case .noHelper: return L.headerNoHelper
+        case .helperOutdated: return L.headerHelperOutdated
+        case .off: return L.headerOff
+        case .paused: return L.headerPaused
+        case .active: return L.headerActive
+        }
+    }
+
+    private func headerDetail(_ mode: Mode) -> String {
+        let config = store.config
+        switch mode {
+        case .noHelper: return L.detailNoHelper
+        case .helperOutdated: return L.detailHelperOutdated
+        case .off: return L.detailOff
+        case .paused: return L.detailPaused
+        case .active:
+            switch (config.noLock, config.lidAwake) {
+            case (true, true): return L.detailActiveBoth
+            case (true, false): return L.detailActiveNoLock
+            case (false, true): return L.detailActiveLid
+            case (false, false): return L.detailActiveNone
+            }
+        }
     }
 
     // MARK: - 操作
 
+    @objc private func toggleEnabled() {
+        store.update { $0.enabled.toggle() }
+        apply()
+    }
+
     @objc private func toggleNoLock() {
         store.update { $0.noLock.toggle() }
-        applyScreenSaver()
-        refresh()
+        apply()
     }
 
     @objc private func toggleLidAwake() {
         store.update { $0.lidAwake.toggle() }
-        refresh()
+        apply()
     }
 
     @objc private func toggleLogin() {
@@ -244,29 +294,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             login.enable()
         }
-        refresh()
     }
 
-    @objc private func installHelper() {
-        let result = helper.install(bundlePath: Bundle.main.bundlePath)
-        if result.ok {
-            store.update { $0.enabled = true }
-            login.enable()
-            applyScreenSaver()
-            refresh()
-            showAlert("已启用", "后台助手已安装，PowerLock 开始工作。", style: .informational)
-        } else if !result.cancelled {
-            showAlert("安装失败", result.message)
+    // MARK: - 首次引导与助手
+
+    @objc private func runSetup() {
+        showOnboarding()
+    }
+
+    private func showOnboarding() {
+        if let onboarding {
+            onboarding.show()
+            return
         }
+        let window = OnboardingWindow(
+            onEnable: { [weak self] wantsLogin in
+                guard let self else { return .failed(L.internalError) }
+                let result = self.helper.install(bundlePath: Bundle.main.bundlePath)
+                if result.cancelled { return .cancelled }
+                guard result.ok else { return .failed(result.message) }
+                self.store.update { $0.enabled = true }
+                if wantsLogin { self.login.enable() }
+                self.reloadHelperState()
+                self.apply()
+                return .installed
+            },
+            onFinish: { [weak self] in
+                self?.onboarding = nil
+            }
+        )
+        onboarding = window
+        window.show()
     }
 
     /// 升级 App 后，已安装的助手可能还是旧逻辑；提示用户输入一次管理员密码更新。
     private func promptHelperUpdate() {
         let alert = NSAlert()
-        alert.messageText = "需要更新后台助手"
-        alert.informativeText = "PowerLock 已升级，后台助手也有更新（修复合盖时拔电不睡眠等问题）。更新需要输入一次管理员密码。"
-        alert.addButton(withTitle: "现在更新")
-        alert.addButton(withTitle: "稍后")
+        alert.messageText = L.updateHelperTitle
+        alert.informativeText = L.updateHelperBody
+        alert.addButton(withTitle: L.updateNow)
+        alert.addButton(withTitle: L.later)
         activateApp()
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         updateHelper()
@@ -274,21 +341,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func updateHelper() {
         let result = helper.install(bundlePath: Bundle.main.bundlePath)
-        refresh()
+        reloadHelperState()
+        apply()
         if result.ok {
-            showAlert("已更新", "后台助手已更新到最新版本。", style: .informational)
+            showAlert(L.helperUpdatedTitle, "", style: .informational)
         } else if !result.cancelled {
-            showAlert("更新失败", result.message)
+            showAlert(L.updateFailedTitle, result.message)
         }
     }
 
     @objc private func systemDidWake() {
-        applyScreenSaver()
-        refresh()
+        reloadHelperState()
+        apply()
     }
+
+    // MARK: - 更多
 
     @objc private func showDiagnostics() {
         Diagnostics.show(config: store.config, helper: helper, login: login)
+    }
+
+    @objc private func reportIssue() {
+        NSWorkspace.shared.open(AppInfo.newIssueURL)
     }
 
     @objc private func openLockSettings() {
@@ -299,49 +373,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func checkForUpdates() {
         UpdateChecker.check { info in
             guard let info else {
-                showAlert("检查更新失败", "无法获取最新版本，请稍后再试。", style: .warning)
+                showAlert(L.checkUpdateFailedTitle, L.checkUpdateFailedBody)
                 return
             }
-            if info.version.compare(AppInfo.version, options: .numeric) == .orderedDescending {
-                let alert = NSAlert()
-                alert.messageText = "发现新版本 \(info.version)"
-                alert.informativeText = "当前版本 \(AppInfo.version)。"
-                alert.addButton(withTitle: "打开发布页")
-                alert.addButton(withTitle: "稍后")
-                activateApp()
-                if alert.runModal() == .alertFirstButtonReturn, let url = URL(string: info.url) {
-                    NSWorkspace.shared.open(url)
-                }
-            } else {
-                showAlert("已是最新版本", "当前版本 \(AppInfo.version)。", style: .informational)
+            guard info.version.compare(AppInfo.version, options: .numeric) == .orderedDescending else {
+                showAlert(L.upToDateTitle(info.version), L.upToDateBody(AppInfo.version), style: .informational)
+                return
+            }
+            let brew = AppInfo.installedWithHomebrew
+            let alert = NSAlert()
+            alert.messageText = L.newVersionTitle(info.version)
+            alert.informativeText = L.newVersionBody(current: AppInfo.version, brew: brew)
+            alert.addButton(withTitle: L.openReleasePage)
+            if brew { alert.addButton(withTitle: L.copyBrewCommand) }
+            alert.addButton(withTitle: L.later)
+            activateApp()
+            switch alert.runModal() {
+            case .alertFirstButtonReturn:
+                if let url = URL(string: info.url) { NSWorkspace.shared.open(url) }
+            case .alertSecondButtonReturn where brew:
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString("brew upgrade --cask powerlock", forType: .string)
+            default:
+                break
             }
         }
     }
 
     @objc private func showAbout() {
-        let alert = NSAlert()
-        alert.messageText = "PowerLock \(AppInfo.version)"
-        alert.informativeText = """
-        插电时保持屏幕常亮、不自动锁屏；合盖后继续运行。
-        使用电池时自动恢复系统默认睡眠设置。
-
-        后台助手：\(AppInfo.helperLabel)
-        配置文件：\(AppInfo.configPath)
-
-        说明：macOS 的「需要密码」是全局策略；PowerLock 通过保持屏幕常亮来避免自动锁屏。
-        """
-        alert.alertStyle = .informational
-        alert.addButton(withTitle: "好")
-        activateApp()
-        alert.runModal()
+        AboutWindow.show()
     }
 
     @objc private func uninstallAndQuit() {
         let alert = NSAlert()
-        alert.messageText = "卸载 PowerLock 后台助手？"
-        alert.informativeText = "将停止并删除后台服务，恢复系统睡眠与屏幕保护设置。之后可以删除 PowerLock.app。"
-        alert.addButton(withTitle: "卸载并退出")
-        alert.addButton(withTitle: "取消")
+        alert.messageText = L.uninstallTitle
+        alert.informativeText = L.uninstallBody
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: L.uninstallButton)
+        alert.addButton(withTitle: L.cancel)
         activateApp()
         guard alert.runModal() == .alertFirstButtonReturn else { return }
 
@@ -349,7 +418,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let result = helper.uninstall()
             if !result.ok {
                 if !result.cancelled {
-                    showAlert("卸载失败", result.message)
+                    showAlert(L.uninstallFailedTitle, result.message)
                 }
                 return
             }

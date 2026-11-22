@@ -20,7 +20,9 @@ UNIVERSAL=1 ./scripts/build.sh # universal
 ## 代码约定
 
 - Swift 5 语法（`-swift-version 5`），最低部署目标 macOS 13
-- UI 文本使用中文；新增文案尽量简短、面向普通用户
+- 界面文案集中在 `Sources/L10n.swift`，中英文一起写；新增文案尽量简短、面向普通用户
+- 改了界面后运行 `build/PowerLock.app/Contents/MacOS/PowerLock --render-previews build/previews`，检查中英文和深浅色下的截图
+- 改了图标后运行 `./scripts/make_icon.sh`，提交生成的 `Resources/AppIcon.icns` 和 `docs/images/icon.png`
 - 助手脚本使用 zsh，`set -u`，只执行固定命令，不拼接用户输入
 - 改了助手逻辑要把 `HELPER_VERSION` 加 1，并在 `Tests/helper-test.sh` 加用例
 - 不要在用户没开启时修改系统设置；恢复设置时只恢复 PowerLock 自己改过的

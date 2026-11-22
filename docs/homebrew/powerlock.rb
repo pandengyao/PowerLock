@@ -36,7 +36,7 @@ cask "powerlock" do
 
   caveats <<~EOS
     PowerLock installs a background helper the first time you enable it.
-    To remove the helper, use "卸载后台助手…" (Uninstall helper) in the menu bar
+    To remove the helper, use More > "Uninstall PowerLock…" in the menu bar
     before uninstalling, or run:
       brew uninstall --zap --cask powerlock
   EOS

@@ -34,11 +34,11 @@ final class HelperManager {
 
     func install(bundlePath: String) -> (ok: Bool, cancelled: Bool, message: String) {
         guard let directory = helperDirectory else {
-            return (false, false, "找不到内置的助手资源")
+            return (false, false, L.helperResourcesMissing)
         }
         let script = directory + "/install-helper.sh"
         guard FileManager.default.fileExists(atPath: script) else {
-            return (false, false, "安装脚本缺失：\(script)")
+            return (false, false, L.helperResourcesMissing)
         }
         let command = "/bin/zsh \(shellQuote(script)) \(shellQuote(bundlePath))"
         AppLog.info("installing helper from \(bundlePath)")
@@ -47,11 +47,11 @@ final class HelperManager {
 
     func uninstall() -> (ok: Bool, cancelled: Bool, message: String) {
         guard let directory = helperDirectory else {
-            return (false, false, "找不到内置的助手资源")
+            return (false, false, L.helperResourcesMissing)
         }
         let script = directory + "/uninstall-helper.sh"
         guard FileManager.default.fileExists(atPath: script) else {
-            return (false, false, "卸载脚本缺失：\(script)")
+            return (false, false, L.helperResourcesMissing)
         }
         return runAsAdministrator("/bin/zsh \(shellQuote(script))")
     }
