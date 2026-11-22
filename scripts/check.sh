@@ -11,6 +11,6 @@ plutil -lint Resources/Info.plist
 plutil -lint Resources/Helper/com.powerlock.helper.plist
 
 VERSION="${VERSION:-0.0.0}" BUILD="${BUILD:-0}" ./scripts/build.sh
-./build/PowerLock.app/Contents/MacOS/PowerLock --status | head -8
+./build/PowerLock.app/Contents/MacOS/PowerLock --status | sed -n '1,8p'
 
 echo "OK"
