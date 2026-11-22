@@ -21,7 +21,7 @@ PowerLock 是一个 macOS 菜单栏小工具，适合把笔记本当台式机用
 
 ### 方式一：GitHub Releases
 
-1. 从 [Releases](https://github.com/OWNER/PowerLock/releases) 下载 `PowerLock-1.0.0.dmg`（或 `.zip`）
+1. 从 [Releases](https://github.com/pandengyao/PowerLock/releases) 下载 `PowerLock-1.0.0.dmg`（或 `.zip`）
 2. 打开 dmg，把 `PowerLock.app` 拖进「应用程序」
 3. 首次打开如果系统提示无法验证开发者：
    - 打开「系统设置 → 隐私与安全性」
@@ -32,10 +32,10 @@ PowerLock 是一个 macOS 菜单栏小工具，适合把笔记本当台式机用
 ### 方式二：Homebrew
 
 ```bash
-brew install --cask OWNER/tap/powerlock
+brew install --cask pandengyao/tap/powerlock
 ```
 
-（把 `OWNER/tap` 换成实际 tap；也可以直接下载 dmg。）
+（需要先安装 Homebrew；也可以直接下载 dmg。）
 
 ### 方式三：源码构建
 
@@ -43,7 +43,7 @@ brew install --cask OWNER/tap/powerlock
 
 ```bash
 xcode-select --install
-git clone https://github.com/OWNER/PowerLock.git
+git clone https://github.com/pandengyao/PowerLock.git
 cd PowerLock
 ./scripts/build.sh
 open build/PowerLock.app
