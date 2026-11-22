@@ -1,0 +1,37 @@
+name: Bug report
+description: 报告一个问题
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先确认使用的是最新 Release，并附上诊断信息（菜单栏 → 诊断…）。
+  - type: input
+    id: macos
+    attributes:
+      label: macOS 版本
+      placeholder: "例如 macOS 15.2 / Apple M2"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      placeholder: "1. 插电\n2. 合盖\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: 诊断信息
+      description: 菜单栏 → 诊断… → 全选复制，可隐去个人信息
+      render: text

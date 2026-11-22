@@ -1,0 +1,36 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh Tests/*.sh Resources/Helper/*.sh
+
+      - name: Package universal build
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" UNIVERSAL=1 ./scripts/package.sh
+
+      - name: Verify artifacts
+        run: |
+          lipo -info build/PowerLock.app/Contents/MacOS/PowerLock
+          cat build/dist/SHA256SUMS.txt
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            build/dist/*.zip
+            build/dist/*.dmg
+            build/dist/SHA256SUMS.txt

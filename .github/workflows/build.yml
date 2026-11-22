@@ -1,0 +1,26 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make scripts executable
+        run: chmod +x scripts/*.sh Tests/*.sh Resources/Helper/*.sh
+
+      - name: Smoke check
+        run: ./scripts/check.sh
+
+      - name: Helper state machine tests
+        run: ./Tests/helper-test.sh
+
+      - name: Upload app
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerLock-app
+          path: build/PowerLock.app
