@@ -2,7 +2,7 @@
 # 发版后把 version 和 sha256 更新为新 dmg 的值（见 docs/RELEASE_CHECKLIST.md）。
 cask "powerlock" do
   version "1.1.0"
-  sha256 "REPLACE_WITH_DMG_SHA256"
+  sha256 "e7b36cd4df964e9714888ecc7f456eb566d792bcc2b2752987c61118223781dc"
 
   url "https://github.com/pandengyao/PowerLock/releases/download/v#{version}/PowerLock-#{version}.dmg"
   name "PowerLock"
