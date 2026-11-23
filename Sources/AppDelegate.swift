@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// 助手状态要读文件：启动、菜单打开、电源变化、唤醒、安装/更新后，以及 30 秒定时器里重新读。
     private var helperInstalled = false
+    private var uninstalling = false
     private var helperOutdated = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -68,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     /// 「不自动锁屏」需要 App 在运行：退出时恢复屏幕保护，并通知助手恢复显示器休眠，
     /// 避免卸载或退出后留下「永不启动」。合盖运行由后台助手负责，不受 App 退出影响。
     func applicationWillTerminate(_ notification: Notification) {
+        guard !uninstalling else { return }
         ScreenSaver.restore()
         if FileManager.default.fileExists(atPath: AppInfo.configPath) {
             store.update { $0.appRunning = false }
@@ -425,7 +427,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         login.disable()
         ScreenSaver.restore()
-        store.update { $0.enabled = false }
+        // 卸载后不留用户目录下的配置；退出时也不要再写回 appRunning
+        uninstalling = true
+        try? FileManager.default.removeItem(atPath: AppInfo.supportDir)
         NSApp.terminate(nil)
     }
 }

@@ -43,7 +43,8 @@ final class OnboardingWindow: NSObject, NSWindowDelegate {
             self.window = window
             place(introView())
         }
-        window?.center()
+        // 每次显示都放到用户正在用的屏幕上（多显示器时，鼠标所在的屏幕不一定是用户在看的那块）
+        window?.centerOnUserScreen()
         window?.makeKeyAndOrderFront(nil)
         activateApp()
     }

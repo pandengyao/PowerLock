@@ -102,6 +102,48 @@ func runAsAdministrator(_ command: String) -> (ok: Bool, cancelled: Bool, messag
     return (true, false, "")
 }
 
+/// 用户正在用的屏幕：最前面那个普通窗口（不算 PowerLock 自己的）所在的屏幕；
+/// 找不到时用鼠标所在的屏幕。多显示器时，鼠标可能停在另一块屏幕上，但用户正对着的是当前应用的窗口。
+/// 只读窗口位置和所属进程，不需要屏幕录制或辅助功能权限。
+func screenUserIsOn() -> NSScreen? {
+    let ownPID = ProcessInfo.processInfo.processIdentifier
+    // CG 坐标的原点在主屏左上角、向下为正；NSScreen 的原点在主屏左下角、向上为正
+    let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
+    let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+        as? [[String: Any]] ?? []
+    // 列表按从前到后排列，取第一个够大的、看得见的普通窗口
+    for info in windows {
+        guard (info[kCGWindowLayer as String] as? Int) == 0,
+              (info[kCGWindowOwnerPID as String] as? Int32) != ownPID,
+              (info[kCGWindowAlpha as String] as? Double ?? 1) > 0,
+              let dict = info[kCGWindowBounds as String] as? NSDictionary,
+              let bounds = CGRect(dictionaryRepresentation: dict as CFDictionary),
+              bounds.width >= 200, bounds.height >= 150 else { continue }
+        let center = NSPoint(x: bounds.midX, y: primaryHeight - bounds.midY)
+        if let screen = NSScreen.screens.first(where: { $0.frame.contains(center) }) {
+            return screen
+        }
+    }
+    let mouse = NSEvent.mouseLocation
+    return NSScreen.screens.first(where: { $0.frame.contains(mouse) }) ?? NSScreen.main ?? NSScreen.screens.first
+}
+
+extension NSWindow {
+    /// 放到用户正在用的屏幕中间，略偏上（和系统 center() 的习惯一致）。
+    func centerOnUserScreen() {
+        guard let screen = screenUserIsOn() else {
+            center()
+            return
+        }
+        let visible = screen.visibleFrame
+        var origin = NSPoint(x: visible.midX - frame.width / 2,
+                             y: visible.midY - frame.height / 2 + visible.height * 0.1)
+        origin.y = max(visible.minY, min(origin.y, visible.maxY - frame.height))
+        origin.x = max(visible.minX, min(origin.x, visible.maxX - frame.width))
+        setFrameOrigin(origin)
+    }
+}
+
 /// SF Symbol。名字在当前系统上不存在时返回空图，不崩溃。
 /// 注意有些名字是新系统才有的（例如 battery.75percent 要 macOS 14），最低支持 13，用之前查一下。
 func symbol(_ name: String) -> NSImage {

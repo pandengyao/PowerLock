@@ -21,7 +21,7 @@ enum AboutWindow {
         window.contentView = content
         content.layoutSubtreeIfNeeded()
         window.setContentSize(content.fittingSize)
-        window.center()
+        window.centerOnUserScreen()
         window.makeKeyAndOrderFront(nil)
         activateApp()
         self.window = window

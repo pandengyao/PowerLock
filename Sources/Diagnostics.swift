@@ -109,7 +109,7 @@ enum Diagnostics {
             buttons.widthAnchor.constraint(equalTo: scroll.widthAnchor),
         ])
         window.contentView = content
-        window.center()
+        window.centerOnUserScreen()
         window.makeKeyAndOrderFront(nil)
         activateApp()
 
