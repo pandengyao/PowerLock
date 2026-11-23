@@ -9,7 +9,7 @@
 - [ ] `Resources/Info.plist` 的 `CFBundleShortVersionString` 和 `CFBundleVersion` 已更新（构建脚本和 Release 工作流都以它为准，tag 必须与之一致）
 - [ ] 助手逻辑有变化时，`Resources/Helper/powerlock-helper.sh` 里的 `HELPER_VERSION` 加 1
 - [ ] `CHANGELOG.md` 写好，把"未发布"改成日期
-- [ ] README 截图/GIF 是否需要更新。界面截图用 `build/PowerLock.app/Contents/MacOS/PowerLock --render-previews build/previews` 离屏生成（中英文 × 浅色/深色）
+- [ ] README 截图/GIF 是否需要更新。界面截图用 `build/PowerLock.app/Contents/MacOS/PowerLock --render-previews build/previews` 离屏生成（中英文 × 浅色/深色）；演示动画用 `POWERLOCK_LANG=zh … --render-demo docs/images/demo.gif` 和 `POWERLOCK_LANG=en … --render-demo docs/images/demo-en.gif`
 - [ ] 系统语言分别设为中文和英文，各打开一次菜单和引导窗口
 
 ## 2. 构建与产物

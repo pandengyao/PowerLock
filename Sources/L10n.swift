@@ -138,6 +138,13 @@ enum L {
     static var authScriptFailed: String { t("无法请求管理员授权。", "Couldn't ask for admin authorization.") }
     static var unknownError: String { t("未知错误", "Unknown error") }
 
+    // MARK: 演示动画（README 用）
+
+    static var demoCaptionPlugged: String { t("插着电：不锁屏，合盖继续跑", "Plugged in: no lock, runs lid-closed") }
+    static var demoCaptionUnplugged: String { t("拔掉电源：自动暂停，正常睡眠", "Unplugged: paused, sleeps as usual") }
+    static var demoCaptionPluggedBack: String { t("插回电源：自动恢复", "Plugged back in: on again") }
+    static var demoCaptionOff: String { t("随时可以关掉", "Turn it off any time") }
+
     // MARK: 关于
 
     static var aboutTagline: String {

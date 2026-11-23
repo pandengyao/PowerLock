@@ -32,6 +32,7 @@
 
 - 图标改为用 Swift 生成（`scripts/make_icon.sh`），不再需要 Python 和 Pillow
 - `PowerLock --render-previews <目录>` 离屏渲染各个界面的截图（中英文 × 浅色/深色），README 截图由它生成
+- `PowerLock --render-demo <文件.gif>` 生成 README 的演示动画（中英文各一份）
 
 ## 1.1.0 — 2026-11-22
 

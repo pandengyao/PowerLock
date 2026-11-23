@@ -139,6 +139,12 @@ enum Preview {
     }
 
     private static func render(_ view: NSView, _ appearance: NSAppearance, _ path: String) {
+        guard let rep = bitmap(view, appearance) else { return }
+        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+    }
+
+    /// 把一个 view 按真实窗口的方式布局、按 2 倍分辨率渲染成位图。演示动画也用它。
+    static func bitmap(_ view: NSView, _ appearance: NSAppearance) -> NSBitmapImageRep? {
         // 放进一个窗口里，让 Auto Layout 和外观都按真实情况生效
         let window = NSWindow(contentRect: .zero, styleMask: [.borderless], backing: .buffered, defer: false)
         window.appearance = appearance
@@ -169,9 +175,9 @@ enum Preview {
         guard let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(size.width * scale),
                                          pixelsHigh: Int(size.height * scale), bitsPerSample: 8,
                                          samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
-                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return }
+                                         colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0) else { return nil }
         rep.size = size
         container.cacheDisplay(in: container.bounds, to: rep)
-        try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: path))
+        return rep
     }
 }

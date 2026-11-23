@@ -1,5 +1,16 @@
 import Cocoa
 
+// 开发用：生成 README 演示动画。用法：PowerLock --render-demo <输出.gif>
+// 语言用 POWERLOCK_LANG=zh / en 指定。
+if let index = CommandLine.arguments.firstIndex(of: "--render-demo") {
+    let args = CommandLine.arguments
+    let path = index + 1 < args.count ? args[index + 1] : "build/demo.gif"
+    _ = NSApplication.shared
+    NSApp.setActivationPolicy(.prohibited)
+    DemoGIF.render(to: path)
+    exit(0)
+}
+
 // 开发用：把各个界面渲染成 PNG，不显示窗口，不改系统设置。
 if let index = CommandLine.arguments.firstIndex(of: "--render-previews") {
     let args = CommandLine.arguments

@@ -24,7 +24,7 @@ What it does:
 - **Restores normal behavior on battery**: system sleep settings come back. If the lid is already closed when you unplug, the Mac goes to sleep right away instead of staying awake in your bag
 - **No switch to remember**: it follows the power source automatically. You can turn it off or uninstall it from the menu bar at any time
 
-<p align="center"><img src="docs/images/demo.gif" width="640" alt="PowerLock demo: switching between AC and battery"></p>
+<p align="center"><img src="docs/images/demo-en.gif" width="640" alt="PowerLock demo: the menu bar icon and status when plugged in, unplugged, plugged back in, and turned off"></p>
 
 ## How it compares
 
