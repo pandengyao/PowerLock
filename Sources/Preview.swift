@@ -77,6 +77,11 @@ enum Preview {
             row(L.optionsSection, section: true),
             row(L.optionNoLock, checked: true, indent: true),
             row(L.optionLid, checked: true, indent: true),
+            row(L.batterySection, section: true),
+            // 默认关闭：README 截图展示默认状态
+            row(L.batteryLid, checked: false, indent: true),
+            row("\(L.batteryFloorMenu)  20%", indent: true, enabled: false, submenu: true),
+            row(L.batteryTimerMenu, indent: true, enabled: false, submenu: true),
             separator(),
             row(L.launchAtLogin, checked: true),
             row(L.more, submenu: true),
@@ -124,6 +129,7 @@ enum Preview {
         let cases: [(MenuHeaderView.Tone, String, String, Bool)] = [
             (.active, L.headerActive, L.detailActiveBoth, true),
             (.paused, L.headerPaused, L.detailPaused, false),
+            (.active, L.headerBatteryActive, L.detailBatteryActive(floor: 20, timer: L.batteryTimerActive(L.durationText(minutes: 105))), false),
             (.off, L.headerOff, L.detailOff, true),
             (.attention, L.headerNoHelper, L.detailNoHelper, true),
             (.attention, L.headerHelperOutdated, L.detailHelperOutdated, true),

@@ -24,6 +24,7 @@ enum Diagnostics {
         lines.append("Launch at login: \(login.isEnabled)")
         lines.append("")
         lines.append("Config: enabled=\(config.enabled) noLock=\(config.noLock) lidAwake=\(config.lidAwake) appRunning=\(config.appRunning)")
+        lines.append("Battery lid: on=\(config.batteryLidAwake) floor=\(config.batteryFloor)% until=\(config.batteryLidUntil) level=\(PowerMonitor.batteryPercent().map { "\($0)%" } ?? "n/a") lowPower=\(ProcessInfo.processInfo.isLowPowerModeEnabled)")
         lines.append("Screen saver idleTime: \(ScreenSaver.idleTime().map(String.init) ?? "default")")
         lines.append("Screen saver managed by PowerLock: \(ScreenSaver.isManaged())")
         lines.append("")

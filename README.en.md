@@ -21,7 +21,8 @@ What it does:
 
 - **No auto-lock on AC power**: the display stays on and the screen saver does not start, so the screen never locks itself
 - **Keeps running with the lid closed on AC power**: no external display, keyboard or mouse needed
-- **Restores normal behavior on battery**: system sleep settings come back. If the lid is already closed when you unplug, the Mac goes to sleep right away instead of staying awake in your bag
+- **Restores normal behavior on battery** (by default): system sleep settings come back. If the lid is already closed when you unplug, the Mac goes to sleep right away instead of staying awake in your bag
+- **Optional: lid-closed on battery too**: off by default. When on, the Mac doesn't sleep on its own on battery either. It stops by itself below a battery floor (20% by default), in Low Power Mode, or when a timer runs out
 - **No switch to remember**: it follows the power source automatically. You can turn it off or uninstall it from the menu bar at any time
 
 <p align="center"><img src="docs/images/demo-en.gif" width="640" alt="PowerLock demo: the menu bar icon and status when plugged in, unplugged, plugged back in, and turned off"></p>
@@ -31,7 +32,7 @@ What it does:
 - **KeepingYouAwake, `caffeinate`**: prevent idle sleep, but closing the lid still sleeps the Mac ([KeepingYouAwake FAQ](https://github.com/newmarcel/KeepingYouAwake#does-it-work-on-a-macbook-with-a-closed-lid))
 - **Amphetamine**: feature-rich, closed source (App Store). Its closed-display mode relies on the separate Amphetamine Enhancer for a fail-safe
 - **[Sleepless](https://github.com/Aboudjem/Sleepless)**: open source, supports lid-closed on battery with a timer and a battery floor. You switch it on by hand
-- **PowerLock**: switches on and off with the power adapter, so it fits a Mac that is plugged in most of the time. It also handles screen locking. It deliberately does not keep the Mac awake with the lid closed on battery
+- **PowerLock**: switches on and off with the power adapter, so it fits a Mac that is plugged in most of the time. It also handles screen locking. Lid-closed on battery is an option and is off by default
 
 ## Requirements
 
@@ -79,12 +80,12 @@ PowerLock lives in the menu bar. Click the lock to see what it's doing:
 
 The menu bar icon:
 
-- **Open lock with a bolt**: working (plugged in)
-- **Open lock, hollow**: on, but paused because you're on battery
+- **Open lock with a bolt**: working (plugged in, or running on battery with the battery option)
+- **Open lock, hollow**: on, but paused on battery (including when the battery option has stopped itself because of low battery, Low Power Mode or the timer)
 - **Closed lock**: off
 - **Dot in the corner**: setup isn't finished, or the helper needs an update
 
-In the menu, **PowerLock Enabled** is the main switch, and the two options under **While plugged in** can be turned on and off separately. **More** has Lock Screen settings, updates, diagnostics, issue reporting and uninstall.
+In the menu, **PowerLock Enabled** is the main switch, and the two options under **While plugged in** can be turned on and off separately. Under **On battery**, **Also keep running with the lid closed** is off by default and needs the lid option above. Below it you can set the battery floor (10% to 50%) and a timer (1, 2 or 4 hours). With it on, the Mac doesn't sleep on its own on battery even with the lid open; only the display turns off. **More** has Lock Screen settings, updates, diagnostics, issue reporting and uninstall.
 
 The UI follows your system language: Simplified Chinese if that comes first in your preferred languages, English otherwise.
 
@@ -95,13 +96,14 @@ The "require password" setting in macOS is a global policy that a normal app can
 1. On AC power it stops the screen saver from starting and keeps the display awake, so the lock never triggers
 2. On AC power with lid mode on, the helper runs `pmset -a disablesleep 1`
 3. On battery, or when you turn it off, the helper restores `disablesleep 0` and your display sleep time. macOS only checks the lid when it opens or closes or the power source changes, so if the lid is already closed at that point (and no external display is connected), the helper runs `pmset sleepnow`
+4. With the battery option on, the helper keeps `disablesleep 1` on battery too, but display sleep goes back to normal. On every check it reads the internal battery level (`pmset -g batt`) and Low Power Mode. Below the floor, in Low Power Mode, after the timer, or if the level can't be read, it restores sleep as in step 3. Once stopped, it doesn't turn itself back on while the lid stays closed. Open the lid or plug in first
 
 The helper is a launchd daemon (`com.powerlock.helper`) bundled with the app and installed by it:
 
 - The app itself runs with your user permissions
 - The helper runs as root and only changes sleep settings (fixed `pmset` commands). It does not use the network and only reads PowerLock's own config and state files
 - It only turns `disablesleep` off if PowerLock turned it on, so it does not fight your own settings or other tools
-- The menu bar updates instantly through IOKit power notifications. The helper checks the power source every 5 seconds, so settings are restored within about 5 seconds of unplugging
+- The menu bar updates instantly through IOKit power notifications. The helper checks the power source every 5 seconds, so settings are restored within about 5 seconds of unplugging (unless the battery option is on)
 
 See [SECURITY.md](SECURITY.md) for the full permission model.
 
@@ -136,7 +138,7 @@ Lid-closed mode is handled by the helper and keeps working. The no-lock option n
 Because display sleep triggers the lock screen. If you only want lid-closed mode, turn off the no-lock option.
 
 **Can it keep the Mac awake with the lid closed on battery?**
-No, on purpose: airflow is poor with the lid closed and the battery drains quickly. Use [Sleepless](https://github.com/Aboudjem/Sleepless) if you need that.
+Yes. Turn on **On battery → Also keep running with the lid closed** in the menu. It is off by default. The Mac cools less well with the lid closed and can get warm under sustained load, so PowerLock stops and lets it sleep below the battery floor (20% by default), in Low Power Mode, or when the timer runs out. The timer only covers this option: when it ends, the option turns off, and nothing changes while plugged in.
 
 **Does it collect data?**
 No. It only contacts the GitHub Releases API when you click "check for updates". Settings stay on your Mac.

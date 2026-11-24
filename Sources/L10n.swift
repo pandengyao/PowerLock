@@ -36,7 +36,7 @@ enum L {
     static var detailPaused: String { t("插上电源后自动恢复，合盖会正常睡眠", "Resumes when you plug in. Closing the lid sleeps as usual.") }
     static var detailOff: String { t("系统按默认设置睡眠和锁屏", "Your Mac sleeps and locks as usual.") }
     static var detailNoHelper: String { t("需要安装后台助手才能生效", "Install the helper to start.") }
-    static var detailHelperOutdated: String { t("更新后才能使用新版的修复", "Update it to get the latest fixes.") }
+    static var detailHelperOutdated: String { t("更新后才能用上新功能和修复", "Update it to get new features and fixes.") }
 
     // MARK: 菜单
 
@@ -46,7 +46,51 @@ enum L {
     static var optionNoLock: String { t("不自动锁屏", "Don't auto-lock the screen") }
     static var optionLid: String { t("合盖后继续运行", "Keep running with the lid closed") }
     static var optionNoLockHint: String { t("屏幕保持常亮", "Keeps the display on") }
-    static var optionLidHint: String { t("用电池时合盖照常睡眠", "On battery, closing the lid still sleeps") }
+    static var optionLidHint: String { t("用电池时合盖照常睡眠，除非打开下面的「用电池时也合盖运行」", "On battery, closing the lid still sleeps unless you turn on the On battery option below") }
+
+    // MARK: 用电池时合盖运行
+
+    static var batterySection: String { t("用电池时", "On battery") }
+    static var batteryLid: String { t("也合盖运行", "Also keep running with the lid closed") }
+    static var batteryLidHint: String { t("电量低、开了低电量模式或到了定时时间会自动停止", "Stops automatically at low battery, in Low Power Mode, or when the timer ends") }
+    static var batteryFloorMenu: String { t("电量低于多少时停止", "Stop below") }
+    static func batteryFloorItem(_ pct: Int) -> String { "\(pct)%" }
+    static var batteryTimerMenu: String { t("定时停止", "Timer") }
+    static var batteryTimerNone: String { t("不限时", "No time limit") }
+    static func batteryTimerItem(_ hours: Int) -> String { t("\(hours) 小时后", hours == 1 ? "Stop after 1 hour" : "Stop after \(hours) hours") }
+    static func batteryTimerActive(_ remaining: String) -> String { t("还剩 \(remaining)", "\(remaining) left") }
+    static func durationText(minutes: Int) -> String {
+        let h = minutes / 60, m = minutes % 60
+        if h > 0 && m > 0 { return t("\(h) 小时 \(m) 分", "\(h)h \(m)m") }
+        if h > 0 { return t("\(h) 小时", "\(h)h") }
+        return t("\(m) 分钟", "\(m)m")
+    }
+
+    static var batteryConfirmTitle: String { t("用电池时也合盖运行？", "Keep running lid-closed on battery?") }
+    static func batteryConfirmBody(floor: Int) -> String {
+        t("打开后，用电池时 Mac 不会自动睡眠，开着盖也一样，只有显示器照常关闭。合上盖子后散热比开盖差，长时间满负载会明显发热；电量也会持续消耗。\n\nPowerLock 会在这些情况下自动停止，让 Mac 正常睡眠：\n· 电量低于 \(floor)%\n· 打开了低电量模式\n· 读不到电量\n· 到了定时时间（默认不限时，打开后可以在菜单里设 1、2、4 小时）\n\n电量下限和定时可以在菜单里改。",
+          "On battery, your Mac won't sleep on its own, even with the lid open. Only the display turns off. With the lid closed, the Mac cools less well and can get warm under sustained load, and the battery keeps draining.\n\nPowerLock stops automatically and lets the Mac sleep when:\n· battery drops below \(floor)%\n· Low Power Mode is on\n· the battery level can't be read\n· the timer runs out (no limit by default; set 1, 2 or 4 hours in the menu after turning this on)\n\nYou can change the battery floor and the timer in the menu.")
+    }
+    static var batteryConfirmButton: String { t("打开", "Turn On") }
+
+    static var headerBatteryActive: String { t("正在用电池保持在线", "Awake on battery") }
+    static func detailBatteryActive(floor: Int, timer: String?) -> String {
+        // 有定时时去掉「合盖继续运行」，标题已经说了在线，这样一行放得下
+        guard let timer else {
+            return t("合盖继续运行，电量低于 \(floor)% 自动停止", "Keeps running lid-closed, stops below \(floor)%")
+        }
+        return t("电量低于 \(floor)% 自动停止，\(timer)", "Stops below \(floor)%, \(timer)")
+    }
+    static func detailBatteryStoppedLow(floor: Int) -> String {
+        t("电量低于 \(floor)%，已恢复正常睡眠。插上电源后自动恢复", "Below \(floor)%, so normal sleep is back. Resumes when you plug in.")
+    }
+    static var detailBatteryStoppedLPM: String {
+        t("低电量模式已打开，已恢复正常睡眠", "Low Power Mode is on, so normal sleep is back.")
+    }
+    static var detailBatteryStoppedUnreadable: String {
+        t("读不到电池电量，已恢复正常睡眠", "Can't read the battery level, so normal sleep is back.")
+    }
+    static var tooltipBatteryActive: String { t("PowerLock：用电池保持在线", "PowerLock: awake on battery") }
     static var launchAtLogin: String { t("登录时启动", "Launch at Login") }
     static var installHelper: String { t("完成设置…", "Finish Setup…") }
     static var updateHelper: String { t("更新后台助手…", "Update Helper…") }
@@ -102,8 +146,8 @@ enum L {
 
     static var updateHelperTitle: String { t("需要更新后台助手", "Update the helper") }
     static var updateHelperBody: String {
-        t("这个版本的 PowerLock 带有新的后台助手（修复了合盖时拔电不睡眠等问题）。更新需要输入一次管理员密码。",
-          "This version of PowerLock comes with an updated helper (it fixes the Mac staying awake when unplugged with the lid closed). You'll need to enter your admin password once.")
+        t("这个版本的 PowerLock 带有更新过的后台助手，新功能和修复要更新后才生效。更新需要输入一次管理员密码。",
+          "This version of PowerLock comes with an updated helper. New features and fixes take effect after you update it. You'll need to enter your admin password once.")
     }
     static var updateNow: String { t("现在更新", "Update Now") }
     static var helperUpdatedTitle: String { t("后台助手已更新", "Helper updated") }

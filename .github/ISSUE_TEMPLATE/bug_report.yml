@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        感谢反馈。请先确认使用的是最新 Release，并附上诊断信息（菜单栏 → 诊断…）。
+        感谢反馈。请先确认使用的是最新 Release，并附上诊断信息（菜单栏 → 更多 → 诊断信息…）。
   - type: input
     id: macos
     attributes:
@@ -33,5 +33,5 @@ body:
     id: diagnostics
     attributes:
       label: 诊断信息
-      description: 菜单栏 → 诊断… → 全选复制，可隐去个人信息
+      description: 菜单栏 → 更多 → 诊断信息… → 拷贝，可隐去个人信息
       render: text

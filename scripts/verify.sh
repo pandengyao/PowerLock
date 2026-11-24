@@ -43,11 +43,15 @@ if [[ -f "$CONFIG" ]]; then
   enabled=$(plutil -extract enabled raw -o - "$CONFIG" 2>/dev/null || echo false)
   no_lock=$(plutil -extract noLock raw -o - "$CONFIG" 2>/dev/null || echo false)
   lid_awake=$(plutil -extract lidAwake raw -o - "$CONFIG" 2>/dev/null || echo false)
-  echo "配置: enabled=$enabled noLock=$no_lock lidAwake=$lid_awake"
+  battery_lid=$(plutil -extract batteryLidAwake raw -expect bool -o - "$CONFIG" 2>/dev/null || echo false)
+  battery_floor=$(plutil -extract batteryFloor raw -expect integer -o - "$CONFIG" 2>/dev/null || echo 20)
+  battery_until=$(plutil -extract batteryLidUntil raw -expect integer -o - "$CONFIG" 2>/dev/null || echo 0)
+  echo "配置: enabled=$enabled noLock=$no_lock lidAwake=$lid_awake batteryLidAwake=$battery_lid batteryFloor=$battery_floor batteryLidUntil=$battery_until"
 else
   enabled=false
   no_lock=false
   lid_awake=false
+  battery_lid=false
   bad "配置文件不存在"
 fi
 
@@ -64,6 +68,10 @@ sleep_disabled=$(pmset -g 2>/dev/null | awk '/SleepDisabled/ {print $2; exit}')
 [[ -z "$sleep_disabled" ]] && sleep_disabled=0
 if [[ "$enabled" == "true" && "$on_ac" == true && "$lid_awake" == "true" ]]; then
   [[ "$sleep_disabled" == "1" ]] && ok "AC + 合盖运行开启: SleepDisabled=1" || bad "AC 下 SleepDisabled 应为 1，实际 $sleep_disabled"
+elif [[ "$enabled" == "true" && "$on_ac" == false && "$lid_awake" == "true" && "$battery_lid" == "true" ]]; then
+  # 用电池合盖运行：是否保持取决于电量、低电量模式和定时，这里只显示，不判对错
+  battery_line=$(pmset -g batt 2>/dev/null | grep -e '-InternalBattery-' | head -n 1)
+  echo "ℹ️  用电池合盖运行已开启: SleepDisabled=$sleep_disabled（${battery_line:-读不到内置电池}）"
 else
   [[ "$sleep_disabled" == "0" ]] && ok "非目标状态: SleepDisabled=0" || bad "SleepDisabled 应为 0，实际 $sleep_disabled"
 fi

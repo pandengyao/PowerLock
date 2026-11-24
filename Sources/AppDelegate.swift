@@ -39,6 +39,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             self?.reloadHelperState()
             self?.apply()
         }
+        // 电量跌破下限、打开低电量模式时，助手 5 秒内就停了，图标也要跟着变
+        power.onLevelChange { [weak self] in
+            self?.apply()
+        }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(powerStateDidChange),
+            name: .NSProcessInfoPowerStateDidChange,
+            object: nil
+        )
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
             selector: #selector(systemDidWake),
@@ -95,6 +105,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private enum Mode {
         case noHelper, helperOutdated, off, paused, active
+        /// 用电池、但用户打开了「用电池时也合盖运行」且没触发任何保护
+        case batteryActive
     }
 
     /// 两个选项都关着时，总开关开着也什么都不做，按「已关闭」显示。
@@ -103,7 +115,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if !helperInstalled { return .noHelper }
         if helperOutdated { return .helperOutdated }
         if !config.enabled || (!config.noLock && !config.lidAwake) { return .off }
-        return power.isOnAC ? .active : .paused
+        if power.isOnAC { return .active }
+        return batteryLidStop() == nil ? .batteryActive : .paused
+    }
+
+    /// 用电池合盖运行为什么停着。
+    private enum BatteryStop {
+        case off, lowBattery(Int), lowPowerMode, unreadable, timerEnded
+    }
+
+    /// 和助手里的 battery_lid_allowed 用同样的条件，菜单显示才和实际行为一致：
+    /// 只看内置电池；低电量模式用系统的判断（助手读 pmset 的 lowpowermode / powermode）。
+    /// 返回 nil 表示正在运行。
+    private func batteryLidStop() -> BatteryStop? {
+        let config = store.config
+        guard config.lidAwake, config.batteryLidAwake else { return .off }
+        guard let pct = PowerMonitor.batteryPercent() else { return .unreadable }
+        if pct < config.batteryFloor { return .lowBattery(pct) }
+        if ProcessInfo.processInfo.isLowPowerModeEnabled { return .lowPowerMode }
+        if config.batteryLidUntil > 0, Int(Date().timeIntervalSince1970) >= config.batteryLidUntil { return .timerEnded }
+        return nil
+    }
+
+    /// 定时还剩多久，没设定时返回 nil。
+    private func batteryTimerRemaining() -> String? {
+        let until = store.config.batteryLidUntil
+        guard until > 0 else { return nil }
+        let minutes = max(0, (until - Int(Date().timeIntervalSince1970) + 59) / 60)
+        return L.batteryTimerActive(L.durationText(minutes: minutes))
     }
 
     private func reloadHelperState() {
@@ -113,6 +152,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     /// 按当前配置和电源状态设置屏幕保护，并刷新菜单栏图标。
     private func apply() {
+        // 定时到了就关掉「用电池时也合盖运行」；助手那边已经按截止时间停了，这里同步菜单里的开关
+        if store.config.batteryLidUntil > 0, Int(Date().timeIntervalSince1970) >= store.config.batteryLidUntil {
+            store.update { $0.batteryLidAwake = false; $0.batteryLidUntil = 0 }
+        }
         let config = store.config
         if helperInstalled && config.enabled && config.noLock && power.isOnAC {
             ScreenSaver.disableAutoLock()
@@ -138,6 +181,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .paused:
             state = .paused
             tooltip = L.tooltipPaused
+        case .batteryActive:
+            state = .active
+            tooltip = L.tooltipBatteryActive
         case .active:
             state = .active
             tooltip = L.tooltipActive
@@ -193,6 +239,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             lid.toolTip = L.optionLidHint
             lid.indentationLevel = 1
             menu.addItem(lid)
+
+            // 用电池时：默认关闭，需要先开「合盖后继续运行」才可用；旧版助手不认这个设置，更新前置灰
+            let batteryUsable = config.enabled && config.lidAwake && mode != .helperOutdated
+            menu.addItem(sectionHeader(L.batterySection))
+            let battery = item(L.batteryLid, #selector(toggleBatteryLid))
+            battery.state = config.batteryLidAwake ? .on : .off
+            battery.isEnabled = batteryUsable
+            battery.toolTip = L.batteryLidHint
+            battery.indentationLevel = 1
+            menu.addItem(battery)
+
+            let floorMenu = NSMenu()
+            floorMenu.autoenablesItems = false
+            for pct in PowerLockConfig.batteryFloorChoices {
+                let choice = item(L.batteryFloorItem(pct), #selector(setBatteryFloor(_:)))
+                choice.tag = pct
+                choice.state = config.batteryFloor == pct ? .on : .off
+                floorMenu.addItem(choice)
+            }
+            let floor = NSMenuItem(title: "\(L.batteryFloorMenu)  \(config.batteryFloor)%", action: nil, keyEquivalent: "")
+            floor.submenu = floorMenu
+            floor.isEnabled = batteryUsable && config.batteryLidAwake
+            floor.indentationLevel = 1
+            menu.addItem(floor)
+
+            let timerMenu = NSMenu()
+            timerMenu.autoenablesItems = false
+            let none = item(L.batteryTimerNone, #selector(setBatteryTimer(_:)))
+            none.tag = 0
+            none.state = config.batteryLidUntil == 0 ? .on : .off
+            timerMenu.addItem(none)
+            for hours in PowerLockConfig.batteryTimerChoices {
+                let choice = item(L.batteryTimerItem(hours), #selector(setBatteryTimer(_:)))
+                choice.tag = hours
+                timerMenu.addItem(choice)
+            }
+            let timerTitle = batteryTimerRemaining().map { "\(L.batteryTimerMenu)  \($0)" } ?? L.batteryTimerMenu
+            let timer = NSMenuItem(title: timerTitle, action: nil, keyEquivalent: "")
+            timer.submenu = timerMenu
+            timer.isEnabled = batteryUsable && config.batteryLidAwake
+            timer.indentationLevel = 1
+            menu.addItem(timer)
         }
 
         menu.addItem(.separator())
@@ -242,7 +330,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .noHelper, .helperOutdated: return .attention
         case .off: return .off
         case .paused: return .paused
-        case .active: return .active
+        case .active, .batteryActive: return .active
         }
     }
 
@@ -252,6 +340,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .helperOutdated: return L.headerHelperOutdated
         case .off: return L.headerOff
         case .paused: return L.headerPaused
+        case .batteryActive: return L.headerBatteryActive
         case .active: return L.headerActive
         }
     }
@@ -262,7 +351,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .noHelper: return L.detailNoHelper
         case .helperOutdated: return L.detailHelperOutdated
         case .off: return L.detailOff
-        case .paused: return L.detailPaused
+        case .paused:
+            switch batteryLidStop() {
+            case .lowBattery?: return L.detailBatteryStoppedLow(floor: config.batteryFloor)
+            case .lowPowerMode?: return L.detailBatteryStoppedLPM
+            case .unreadable?: return L.detailBatteryStoppedUnreadable
+            case .timerEnded?, .off?, nil: return L.detailPaused
+            }
+        case .batteryActive:
+            return L.detailBatteryActive(floor: config.batteryFloor, timer: batteryTimerRemaining())
         case .active:
             switch (config.noLock, config.lidAwake) {
             case (true, true): return L.detailActiveBoth
@@ -280,13 +377,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         apply()
     }
 
+    /// 每次打开前都说明风险和自动停止的条件；关掉不用确认。
+    @objc private func toggleBatteryLid() {
+        if store.config.batteryLidAwake {
+            store.update { $0.batteryLidAwake = false; $0.batteryLidUntil = 0 }
+            apply()
+            return
+        }
+        let alert = NSAlert()
+        alert.messageText = L.batteryConfirmTitle
+        alert.informativeText = L.batteryConfirmBody(floor: store.config.batteryFloor)
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: L.batteryConfirmButton)
+        alert.addButton(withTitle: L.cancel)
+        activateApp()
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        store.update { $0.batteryLidAwake = true }
+        apply()
+    }
+
+    @objc private func setBatteryFloor(_ sender: NSMenuItem) {
+        guard (5...90).contains(sender.tag) else { return }
+        store.update { $0.batteryFloor = sender.tag }
+        apply()
+    }
+
+    /// tag 是小时数，0 表示不限时。
+    @objc private func setBatteryTimer(_ sender: NSMenuItem) {
+        let hours = sender.tag
+        store.update {
+            $0.batteryLidUntil = hours > 0 ? Int(Date().timeIntervalSince1970) + hours * 3600 : 0
+        }
+        apply()
+    }
+
     @objc private func toggleNoLock() {
         store.update { $0.noLock.toggle() }
         apply()
     }
 
     @objc private func toggleLidAwake() {
-        store.update { $0.lidAwake.toggle() }
+        store.update {
+            $0.lidAwake.toggle()
+            // 用电池合盖运行依赖这个选项：关掉时一起关，以后再打开电池选项会重新确认
+            if !$0.lidAwake { $0.batteryLidAwake = false; $0.batteryLidUntil = 0 }
+        }
         apply()
     }
 
@@ -349,6 +484,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             showAlert(L.helperUpdatedTitle, "", style: .informational)
         } else if !result.cancelled {
             showAlert(L.updateFailedTitle, result.message)
+        }
+    }
+
+    /// 低电量模式开关时系统在任意线程发通知，切回主线程刷新。
+    @objc private func powerStateDidChange() {
+        DispatchQueue.main.async { [weak self] in
+            self?.apply()
         }
     }
 
