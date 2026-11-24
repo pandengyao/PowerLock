@@ -273,6 +273,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             for hours in PowerLockConfig.batteryTimerChoices {
                 let choice = item(L.batteryTimerItem(hours), #selector(setBatteryTimer(_:)))
                 choice.tag = hours
+                // 定时还没到期时，勾上当时选的那一项
+                choice.state = config.batteryLidUntil > 0 && batteryTimerHours == hours ? .on : .off
                 timerMenu.addItem(choice)
             }
             let timerTitle = batteryTimerRemaining().map { "\(L.batteryTimerMenu)  \($0)" } ?? L.batteryTimerMenu
@@ -402,9 +404,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         apply()
     }
 
+    /// 上次选的定时小时数，只用来在子菜单里打勾；不写进配置，App 重启后不打勾也不影响定时。
+    private var batteryTimerHours = 0
+
     /// tag 是小时数，0 表示不限时。
     @objc private func setBatteryTimer(_ sender: NSMenuItem) {
         let hours = sender.tag
+        batteryTimerHours = hours
         store.update {
             $0.batteryLidUntil = hours > 0 ? Int(Date().timeIntervalSince1970) + hours * 3600 : 0
         }
