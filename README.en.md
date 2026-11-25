@@ -25,7 +25,7 @@ What it does:
 - **Optional: lid-closed on battery too**: off by default. When on, the Mac doesn't sleep on its own on battery either. It stops by itself below a battery floor (20% by default), in Low Power Mode, or when a timer runs out
 - **No switch to remember**: it follows the power source automatically. You can turn it off or uninstall it from the menu bar at any time
 
-<p align="center"><img src="docs/images/demo-en.gif" width="640" alt="PowerLock demo: the menu bar icon and status when plugged in, unplugged, plugged back in, and turned off"></p>
+<p align="center"><img src="docs/images/demo-en.gif" width="640" alt="PowerLock demo: the menu bar icon and status when plugged in, unplugged, with the battery option on, plugged back in, and turned off"></p>
 
 ## How it compares
 

@@ -188,6 +188,7 @@ enum L {
 
     static var demoCaptionPlugged: String { t("插着电：不锁屏，合盖继续跑", "Plugged in: no lock, runs lid-closed") }
     static var demoCaptionUnplugged: String { t("拔掉电源：自动暂停，正常睡眠", "Unplugged: paused, sleeps as usual") }
+    static var demoCaptionBattery: String { t("想在电池上也跑：打开这个选项", "Want it on battery too? Turn this on") }
     static var demoCaptionPluggedBack: String { t("插回电源：自动恢复", "Plugged back in: on again") }
     static var demoCaptionOff: String { t("随时可以关掉", "Turn it off any time") }
 

@@ -3,7 +3,7 @@ import ImageIO
 import UniformTypeIdentifiers
 
 /// 开发用：`PowerLock --render-demo <输出.gif> [zh|en]` 生成 README 里的演示动画。
-/// 用真实的菜单栏图标和菜单顶部状态区，按「插电 → 拔电 → 插回 → 关闭」的顺序切换，
+/// 用真实的菜单栏图标和菜单顶部状态区，按「插电 → 拔电 → 打开电池选项 → 插回 → 关闭」的顺序切换，
 /// 和 --render-previews 一样离屏渲染，不需要屏幕录制权限，也不改系统设置。
 enum DemoGIF {
     private struct Scene {
@@ -13,6 +13,8 @@ enum DemoGIF {
         let detail: String
         let onAC: Bool
         let enabled: Bool
+        /// 「用电池时 → 也合盖运行」是否打开
+        let batteryLid: Bool
         let caption: String
         let seconds: Double
     }
@@ -20,16 +22,19 @@ enum DemoGIF {
     static func render(to path: String) {
         let scenes: [Scene] = [
             Scene(icon: .active, tone: .active, title: L.headerActive, detail: L.detailActiveBoth,
-                  onAC: true, enabled: true, caption: L.demoCaptionPlugged, seconds: 3.2),
+                  onAC: true, enabled: true, batteryLid: false, caption: L.demoCaptionPlugged, seconds: 3.2),
             Scene(icon: .paused, tone: .paused, title: L.headerPaused, detail: L.detailPaused,
-                  onAC: false, enabled: true, caption: L.demoCaptionUnplugged, seconds: 3.2),
+                  onAC: false, enabled: true, batteryLid: false, caption: L.demoCaptionUnplugged, seconds: 3.2),
+            Scene(icon: .active, tone: .active, title: L.headerBatteryActive,
+                  detail: L.detailBatteryActive(floor: 20, timer: nil),
+                  onAC: false, enabled: true, batteryLid: true, caption: L.demoCaptionBattery, seconds: 3.6),
             Scene(icon: .active, tone: .active, title: L.headerActive, detail: L.detailActiveBoth,
-                  onAC: true, enabled: true, caption: L.demoCaptionPluggedBack, seconds: 2.6),
+                  onAC: true, enabled: true, batteryLid: true, caption: L.demoCaptionPluggedBack, seconds: 2.6),
             Scene(icon: .off, tone: .off, title: L.headerOff, detail: L.detailOff,
-                  onAC: true, enabled: false, caption: L.demoCaptionOff, seconds: 2.6),
+                  onAC: true, enabled: false, batteryLid: true, caption: L.demoCaptionOff, seconds: 2.6),
         ]
 
-        let size = NSSize(width: 640, height: 400)
+        let size = NSSize(width: 640, height: 440)
         let scale: CGFloat = 1.5
         let fps = 12.0
         let fadeFrames = 5
@@ -119,7 +124,7 @@ enum DemoGIF {
         NSColor(white: 1, alpha: 0.78).setFill()
         rect(0, top: 0, W, barH).fill()
         let barFont = NSFont.systemFont(ofSize: 13, weight: .medium)
-        let clock = NSAttributedString(string: L.isChinese ? "11月23日 周一  10:42" : "Mon Nov 23  10:42 AM",
+        let clock = NSAttributedString(string: L.isChinese ? "11月25日 周三  10:42" : "Wed Nov 25  10:42 AM",
                                        attributes: [.font: barFont, .foregroundColor: NSColor(white: 0.1, alpha: 1)])
         clock.draw(at: NSPoint(x: W - 16 - clock.size().width, y: H - barH + (barH - clock.size().height) / 2))
         var x = W - 30 - clock.size().width
@@ -135,7 +140,7 @@ enum DemoGIF {
         tinted(StatusIcon.image(scene.icon), NSColor(white: 0.1, alpha: 1))
             .draw(in: NSRect(x: itemRect.midX - 9, y: itemRect.midY - 9, width: 18, height: 18))
 
-        // 展开的菜单：真实的状态区 view + 总开关 + 两个选项
+        // 展开的菜单：真实的状态区 view + 总开关 + 插电时两个选项 + 用电池时三行
         // 菜单用和截图相同的渲染方式（Preview.bitmap），颜色和图标与 README 截图一致
         let menuRepOpt = Preview.bitmap(menuView(scene), NSAppearance(named: .aqua)!)
         let menuSize = menuRepOpt?.size ?? .zero
@@ -174,7 +179,7 @@ enum DemoGIF {
         let header = MenuHeaderView()
         header.update(tone: scene.tone, title: scene.title, detail: scene.detail, onAC: scene.onAC)
 
-        func row(_ title: String, checked: Bool, indent: Bool, enabled: Bool) -> NSView {
+        func row(_ title: String, checked: Bool, indent: Bool, enabled: Bool, submenu: Bool = false) -> NSView {
             let check = NSTextField(labelWithString: checked ? "✓" : "")
             check.font = .systemFont(ofSize: 13, weight: .semibold)
             check.textColor = enabled ? .labelColor : .tertiaryLabelColor
@@ -184,18 +189,31 @@ enum DemoGIF {
             let label = NSTextField(labelWithString: title)
             label.font = .menuFont(ofSize: 13)
             label.textColor = enabled ? .labelColor : .tertiaryLabelColor
-            let stack = NSStackView(views: [check, label, NSView()])
+            var views: [NSView] = [check, label, NSView()]
+            if submenu {
+                let arrow = NSImageView(image: symbol("chevron.right"))
+                arrow.symbolConfiguration = .init(pointSize: 10, weight: .semibold)
+                arrow.contentTintColor = enabled ? .secondaryLabelColor : .tertiaryLabelColor
+                views.append(arrow)
+            }
+            let stack = NSStackView(views: views)
             stack.spacing = 6
+            stack.edgeInsets = NSEdgeInsets(top: 0, left: 0, bottom: 0, right: 14)
             stack.translatesAutoresizingMaskIntoConstraints = false
             stack.heightAnchor.constraint(equalToConstant: 22).isActive = true
             stack.widthAnchor.constraint(equalToConstant: MenuHeaderView.width).isActive = true
             return stack
         }
-        let section = NSTextField(labelWithString: L.optionsSection)
-        section.font = .systemFont(ofSize: 11, weight: .semibold)
-        section.textColor = .secondaryLabelColor
-        let sectionRow = NSStackView(views: [section])
-        sectionRow.edgeInsets = NSEdgeInsets(top: 2, left: 24, bottom: 0, right: 0)
+        func sectionRow(_ title: String) -> NSView {
+            let section = NSTextField(labelWithString: title)
+            section.font = .systemFont(ofSize: 11, weight: .semibold)
+            section.textColor = .secondaryLabelColor
+            let wrap = NSStackView(views: [section])
+            wrap.edgeInsets = NSEdgeInsets(top: 2, left: 24, bottom: 0, right: 0)
+            return wrap
+        }
+        let batteryUsable = scene.enabled
+        let batterySubUsable = scene.enabled && scene.batteryLid
 
         let line = FillView(color: .separatorColor, cornerRadius: 0)
         line.translatesAutoresizingMaskIntoConstraints = false
@@ -207,9 +225,13 @@ enum DemoGIF {
         let stack = NSStackView(views: [
             header, separator,
             row(L.turnOn, checked: scene.enabled, indent: false, enabled: true),
-            sectionRow,
+            sectionRow(L.optionsSection),
             row(L.optionNoLock, checked: true, indent: true, enabled: scene.enabled),
             row(L.optionLid, checked: true, indent: true, enabled: scene.enabled),
+            sectionRow(L.batterySection),
+            row(L.batteryLid, checked: scene.batteryLid, indent: true, enabled: batteryUsable),
+            row("\(L.batteryFloorMenu)  20%", checked: false, indent: true, enabled: batterySubUsable, submenu: true),
+            row(L.batteryTimerMenu, checked: false, indent: true, enabled: batterySubUsable, submenu: true),
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
