@@ -52,6 +52,8 @@ brew install --cask pandengyao/tap/powerlock
 
 如果 Homebrew 提示 tap 未受信任，先运行 `brew trust --cask pandengyao/tap/powerlock`。
 
+PowerLock 还没有做苹果公证，用 Homebrew 装的第一次打开也会提示"Apple 无法验证"，处理方法和下面的方式二第 3 步一样。
+
 ### 方式二：下载安装包
 
 1. 从 [Releases](https://github.com/pandengyao/PowerLock/releases/latest) 下载 `PowerLock-<版本>.dmg`

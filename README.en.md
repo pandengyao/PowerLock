@@ -50,6 +50,8 @@ brew install --cask pandengyao/tap/powerlock
 
 If Homebrew says the tap is not trusted, run `brew trust --cask pandengyao/tap/powerlock` first.
 
+PowerLock is not notarized yet, so the first launch shows "Apple could not verify" even when installed with Homebrew. Allow it the same way as in step 3 below.
+
 ### Download
 
 1. Download `PowerLock-<version>.dmg` from [Releases](https://github.com/pandengyao/PowerLock/releases/latest)
