@@ -69,4 +69,5 @@ defaults -currentHost read com.apple.screensaver idleTime     # 应为原值或�
 - [ ] Release Notes 写明安装步骤、首次打开处理、本版本是否需要更新助手
 - [ ] 更新 `pandengyao/homebrew-tap` 的 `Casks/powerlock.rb`（以 `docs/homebrew/powerlock.rb` 为模板，填 version 和 sha256），并在本仓库同步模板
 - [ ] `brew update && brew upgrade --cask powerlock` 实测一次
+- [ ] 从 dmg 手动装旧版后再 `brew install --cask pandengyao/tap/powerlock`：能直接替换（cask 的 `preflight_steps` 负责）
 - [ ] 发布后 24 小时内看 Issue

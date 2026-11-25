@@ -18,6 +18,22 @@ cask "powerlock" do
 
   app "PowerLock.app"
 
+  # 之前从 dmg 手动装过 PowerLock 时，/Applications 里已经有一份 Homebrew 不认识的 App，
+  # 默认会报 "It seems there is already an App" 并停下。这里先退出它，再删掉旧 App，
+  # 由 Homebrew 装新版。只在它的 Info.plist 里有 com.powerlock.app 时才删，别的同名 App 不碰。
+  # 后台助手和用户设置都不动，所以从 1.1 以后的版本升级不用重新输入管理员密码。
+  preflight_steps do
+    if_path_exists "PowerLock.app/Contents/Info.plist", base: :appdir do
+      terminate_process "PowerLock"
+      remove "PowerLock.app/Contents/Info.plist",
+             base:             :appdir,
+             content_contains: "<string>com.powerlock.app</string>"
+      unless_path_exists "PowerLock.app/Contents/Info.plist", base: :appdir do
+        remove "PowerLock.app", base: :appdir, recursive: true
+      end
+    end
+  end
+
   # uninstall 段在 brew upgrade 时也会执行，所以这里只退出 App（升级后 Homebrew 会重新打开它），
   # 不删除后台助手；否则每次升级都要重新输入管理员密码安装助手。
   uninstall quit: "com.powerlock.app"
