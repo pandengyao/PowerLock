@@ -55,6 +55,8 @@ enum L {
     static var batteryLidHint: String { t("电量低、开了低电量模式或到了定时时间会自动停止", "Stops automatically at low battery, in Low Power Mode, or when the timer ends") }
     static var batteryFloorMenu: String { t("电量低于多少时停止", "Stop below") }
     static func batteryFloorItem(_ pct: Int) -> String { "\(pct)%" }
+    static var batteryFloorCustom: String { t("自定义", "Custom") }
+    static var batteryFloorSliderLabel: String { t("电量下限", "Battery floor") }
     static var batteryTimerMenu: String { t("定时停止", "Timer") }
     static var batteryTimerNone: String { t("不限时", "No time limit") }
     static func batteryTimerItem(_ hours: Int) -> String { t("\(hours) 小时后", hours == 1 ? "Stop after 1 hour" : "Stop after \(hours) hours") }

@@ -13,7 +13,9 @@ struct PowerLockConfig: Equatable {
     /// 用电池合盖运行的截止时间（Unix 秒）。0 表示不限时。
     var batteryLidUntil: Int = 0
 
-    static let batteryFloorChoices = [10, 20, 30, 50]
+    static let batteryFloorChoices = [10, 20, 30, 50, 80]
+    /// 后台助手接受的电量下限范围（powerlock-helper.sh 里的 read_int batteryFloor 5 90）
+    static let batteryFloorRange = 5...90
     static let batteryTimerChoices = [1, 2, 4]   // 小时
 }
 
@@ -73,7 +75,7 @@ final class ConfigStore {
         if let value = dictionary["lidAwake"] as? Bool { config.lidAwake = value }
         if let value = dictionary["appRunning"] as? Bool { config.appRunning = value }
         if let value = dictionary["batteryLidAwake"] as? Bool { config.batteryLidAwake = value }
-        if let value = integer(dictionary["batteryFloor"]), (5...90).contains(value) { config.batteryFloor = value }
+        if let value = integer(dictionary["batteryFloor"]), PowerLockConfig.batteryFloorRange.contains(value) { config.batteryFloor = value }
         // 和助手一致：没有这个键表示不限时；有但不合法时按已到期处理（1 是过去的时间），不能变成不限时
         if dictionary["batteryLidUntil"] != nil {
             if let value = integer(dictionary["batteryLidUntil"]), (0...4_102_444_800).contains(value) {

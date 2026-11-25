@@ -258,8 +258,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 choice.state = config.batteryFloor == pct ? .on : .off
                 floorMenu.addItem(choice)
             }
+            floorMenu.addItem(.separator())
+            // 自定义：直接在菜单里拖滑块，每格 5%，松手保存
+            floorMenu.addItem(sectionHeader(L.batteryFloorCustom))
+            let sliderItem = NSMenuItem()
+            sliderItem.view = FloorSliderView(current: config.batteryFloor) { [weak self] pct in
+                self?.saveBatteryFloor(pct)
+            }
+            floorMenu.addItem(sliderItem)
             let floor = NSMenuItem(title: "\(L.batteryFloorMenu)  \(config.batteryFloor)%", action: nil, keyEquivalent: "")
             floor.submenu = floorMenu
+            floorItem = floor
             floor.isEnabled = batteryUsable && config.batteryLidAwake
             floor.indentationLevel = 1
             menu.addItem(floor)
@@ -399,9 +408,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func setBatteryFloor(_ sender: NSMenuItem) {
-        guard (5...90).contains(sender.tag) else { return }
+        guard PowerLockConfig.batteryFloorRange.contains(sender.tag) else { return }
         store.update { $0.batteryFloor = sender.tag }
         apply()
+    }
+
+    /// 当前菜单里的「电量低于多少时停止」项，滑块改值后就地更新标题和勾，不重建菜单。
+    private weak var floorItem: NSMenuItem?
+
+    /// 保存电量下限并刷新菜单栏。滑块松手时调用；范围和后台助手一致（5～90）。
+    private func saveBatteryFloor(_ pct: Int) {
+        guard PowerLockConfig.batteryFloorRange.contains(pct), pct != store.config.batteryFloor else { return }
+        store.update { $0.batteryFloor = pct }
+        apply()
+        // 菜单还开着时不能 rebuild（会把正在拖的滑块一起删掉），只改标题和预设档位的勾
+        if let floor = floorItem {
+            floor.title = "\(L.batteryFloorMenu)  \(pct)%"
+            for choice in floor.submenu?.items ?? [] where choice.action == #selector(setBatteryFloor(_:)) {
+                choice.state = choice.tag == pct ? .on : .off
+            }
+        }
+        header.update(tone: headerTone(mode), title: headerTitle(mode), detail: headerDetail(mode), onAC: power.isOnAC)
     }
 
     /// 上次选的定时小时数，只用来在子菜单里打勾；不写进配置，App 重启后不打勾也不影响定时。

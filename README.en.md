@@ -87,7 +87,7 @@ The menu bar icon:
 - **Closed lock**: off
 - **Dot in the corner**: setup isn't finished, or the helper needs an update
 
-In the menu, **PowerLock Enabled** is the main switch, and the two options under **While plugged in** can be turned on and off separately. Under **On battery**, **Also keep running with the lid closed** is off by default and needs the lid option above. Below it you can set the battery floor (10% to 50%) and a timer (1, 2 or 4 hours). With it on, the Mac doesn't sleep on its own on battery even with the lid open; only the display turns off. **More** has Lock Screen settings, updates, diagnostics, issue reporting and uninstall.
+In the menu, **PowerLock Enabled** is the main switch, and the two options under **While plugged in** can be turned on and off separately. Under **On battery**, **Also keep running with the lid closed** is off by default and needs the lid option above. Below it you can set the battery floor (10%, 20%, 30%, 50% or 80%, or any value from 5% to 90% with the slider in the submenu) and a timer (1, 2 or 4 hours). With it on, the Mac doesn't sleep on its own on battery even with the lid open; only the display turns off. **More** has Lock Screen settings, updates, diagnostics, issue reporting and uninstall.
 
 The UI follows your system language: Simplified Chinese if that comes first in your preferred languages, English otherwise.
 
